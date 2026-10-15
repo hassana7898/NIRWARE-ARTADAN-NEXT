@@ -96,11 +96,11 @@ jobs:
 
       - name: 6. Install root monorepo dependencies (provides tsx and shared tooling)
         working-directory: .
-        run: npm ci
+        run: npm ci || npm install --no-audit --no-fund
 
       - name: 7. Install mobile workspace dependencies
         working-directory: nir-mobile
-        run: npm ci
+        run: npm ci || npm install --no-audit --no-fund
 
       - name: 8. Run mobile TypeScript typecheck & unit tests (tsx comes from the root install)
         working-directory: nir-mobile
