@@ -15,6 +15,12 @@ import type { UserRole } from '../types/auth';
  * Role-based navigation resolution. Any authenticated user whose role the server did not issue
  * (unknown string, missing role) lands on the Auth navigator again instead of being dropped into a
  * role-specific UI it has no rights for — the previous fallback silently opened the driver app.
+ *
+ * `ACCOUNTING` intentionally shares `ManagerNavigator`: the backend grants it on the invoice /
+ * report surface (`server/routes/invoices.ts`, `server/routes/sync.ts`), which is exactly the
+ * manager tab set — but NOT the two screens its role forbids. Those are filtered in
+ * `ManagerNavigator` (and re-guarded server-side), so an accounting user never reaches a route the
+ * API would answer 403 for.
  */
 export function resolveTargetNavigator(
   isAuthenticated: boolean,
@@ -24,7 +30,8 @@ export function resolveTargetNavigator(
   if (role === 'DRIVER') return 'DriverNavigator';
   if (role === 'FARMER') return 'FarmerNavigator';
   if (role === 'OPERATOR') return 'OperatorNavigator';
-  if (role === 'MANAGER' || role === 'ADMIN') return 'ManagerNavigator';
+  if (role === 'MANAGER' || role === 'ACCOUNTING') return 'ManagerNavigator';
+  if (role === 'ADMIN') return 'ManagerNavigator';
   return 'AuthNavigator';
 }
 

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -230,8 +231,27 @@ export function RemittancesScreen() {
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
+  const [farmerId, setFarmerId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [picker, setPicker] = useState<'start' | 'end' | null>(null);
+
+  // The farmer filter is a REAL server-side filter: `findInvoicesWithPagination` has accepted
+  // `farmerId` since Phase 1 (`server/repositories/invoiceRepository.ts`). The options are loaded
+  // from the same farmers endpoint the web FarmersPage uses, so an operator picks a real
+  // registered farmer instead of typing a free-text guess.
+  const farmersQuery = useQuery({
+    queryKey: ['manager', 'remittance-farmer-options'],
+    queryFn: async () => {
+      const res = await apiClient.get(Endpoints.web.farmers);
+      const rows: any[] = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.farmers) ? res.data.farmers : [];
+      return rows
+        .filter((f) => f && !f.isDeleted)
+        .map((f) => ({ id: String(f.id), name: String(f.name || f.id) }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const farmerOptions = farmersQuery.data ?? [];
 
   // Typing must not fire one request per keystroke; the query key only changes when this settles.
   useEffect(() => {
@@ -242,10 +262,10 @@ export function RemittancesScreen() {
   // Every filter change restarts the list at page 1 (staying on page 7 of a new filter shows nothing).
   useEffect(() => {
     setPage(1);
-  }, [tab, search, startDate, endDate]);
+  }, [tab, search, startDate, endDate, farmerId]);
 
   const listQuery = useQuery({
-    queryKey: ['manager', 'remittances', tab, search, startDate, endDate, page],
+    queryKey: ['manager', 'remittances', tab, search, startDate, endDate, farmerId, page],
     queryFn: async () => {
       const res = await apiClient.get(Endpoints.web.invoices, {
         params: buildInvoiceQuery({
@@ -253,6 +273,7 @@ export function RemittancesScreen() {
           search,
           startDate,
           endDate,
+          farmerId,
           page,
           pageSize: DEFAULT_PAGE_SIZE,
         }),
@@ -264,14 +285,14 @@ export function RemittancesScreen() {
 
   // Two one-row requests give both tab counters from the server, so neither tab shows a guessed number.
   const countsQuery = useQuery({
-    queryKey: ['manager', 'remittances', 'counts', startDate, endDate],
+    queryKey: ['manager', 'remittances', 'counts', startDate, endDate, farmerId],
     queryFn: async () => {
       const [exitRes, entryRes] = await Promise.all([
         apiClient.get(Endpoints.web.invoices, {
-          params: buildInvoiceQuery({ tab: 'exit', startDate, endDate, page: 1, pageSize: 1 }),
+          params: buildInvoiceQuery({ tab: 'exit', startDate, endDate, farmerId, page: 1, pageSize: 1 }),
         }),
         apiClient.get(Endpoints.web.invoices, {
-          params: buildInvoiceQuery({ tab: 'entry', startDate, endDate, page: 1, pageSize: 1 }),
+          params: buildInvoiceQuery({ tab: 'entry', startDate, endDate, farmerId, page: 1, pageSize: 1 }),
         }),
       ]);
       return {
@@ -340,6 +361,51 @@ export function RemittancesScreen() {
                 setEndDate(null);
               }}
             />
+
+            {/* Farmer filter (server-side `farmerId`). The server's search box already matches
+                free text, but narrowing to one registered farmer is a different question: it needs
+                the farmer's id, not a name fragment. */}
+            <View style={styles.farmerFilterRow}>
+              <Text style={styles.farmerFilterLabel}>مرغدار:</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.farmerChips}
+              >
+                <TouchableOpacity
+                  style={[styles.farmerChip, farmerId === null && styles.farmerChipActive]}
+                  onPress={() => setFarmerId(null)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: farmerId === null }}
+                >
+                  <Text style={[styles.farmerChipText, farmerId === null && styles.farmerChipTextActive]}>
+                    همه
+                  </Text>
+                </TouchableOpacity>
+
+                {farmersQuery.isLoading ? (
+                  <Text style={styles.farmerChipsLoading}>در حال دریافت فهرست مرغداران…</Text>
+                ) : null}
+
+                {farmerOptions.map((option) => {
+                  const active = farmerId === option.id;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[styles.farmerChip, active && styles.farmerChipActive]}
+                      onPress={() => setFarmerId(active ? null : option.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={option.name}
+                    >
+                      <Text style={[styles.farmerChipText, active && styles.farmerChipTextActive]} numberOfLines={1}>
+                        {option.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
             <Text style={styles.note}>
               ثبت حواله جدید طبق روال کارخانه از پنل وب انجام می‌شود؛ این صفحه فقط برای مشاهده و پایش
@@ -530,7 +596,50 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 10,
   },
-  errorBox: {
+  farmerFilterRow: {
+    marginTop: 10,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  farmerFilterLabel: {
+    fontFamily: 'Vazirmatn_500Medium',
+    fontSize: 12,
+    color: '#475569',
+  },
+  farmerChips: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  farmerChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    maxWidth: 170,
+  },
+  farmerChipActive: {
+    backgroundColor: '#e0f2fe',
+    borderColor: '#0ea5e9',
+  },
+  farmerChipText: {
+    fontFamily: 'Vazirmatn_500Medium',
+    fontSize: 12,
+    color: '#64748b',
+  },
+  farmerChipTextActive: {
+    color: '#0369a1',
+    fontFamily: 'Vazirmatn_700Bold',
+  },
+  farmerChipsLoading: {
+    fontFamily: 'Vazirmatn_400Regular',
+    fontSize: 11,
+    color: '#94a3b8',
+  },  errorBox: {
     backgroundColor: '#fef2f2',
     borderWidth: 1,
     borderColor: '#fecaca',

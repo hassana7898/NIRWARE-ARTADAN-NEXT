@@ -19,6 +19,22 @@ export const Endpoints = {
   /** Push notification device registration (auth required). */
   deviceToken: `${API_PREFIX}/device-token`,
 
+  /**
+   * Weighbridge operations. The web panel (pages/WeighbridgePage.tsx) already exposes map / unmap /
+   * create-remittance / direction; these are the SAME routes in `server/routes/weighbridge.ts` so
+   * the mobile client shares the backend's transaction + audit logic instead of reimplementing it.
+   * Every write requires ADMIN or MANAGER (enforced server-side by requireRole).
+   */
+  weighbridge: {
+    records: '/api/weighbridge/records',
+    recordById: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}`,
+    candidates: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}/candidates`,
+    map: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}/map`,
+    unmap: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}/unmap`,
+    createRemittance: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}/create-remittance`,
+    direction: (id: number | string) => `/api/weighbridge/records/${encodeURIComponent(String(id))}/direction`,
+  },
+
   auth: {
     requestOtp: `${API_PREFIX}/auth/otp/request`,
     verifyOtp: `${API_PREFIX}/auth/otp/verify`,

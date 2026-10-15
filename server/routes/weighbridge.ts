@@ -8,7 +8,7 @@ import { farmers, invoices, weighbridge_records } from "../db/schema";
 import { requireRole } from "../middleware/auth";
 import { actorFromRequest, recordAudit } from "../services/auditService";
 import { createInvoiceInTransaction, deleteInvoiceInTransaction } from "../services/invoiceService";
-import { addDays, dayDistance, jalaliWindow, plateKey, toGregorian, toJalali } from "../../shared/jalali";
+import { addDays, dayDistance, jalaliText, jalaliWindow, plateKey, toGregorian, toJalali } from "../../shared/jalali";
 import { toAsciiDigits } from "../../shared/persianText";
 
 /**
@@ -72,29 +72,23 @@ export const weightColumnFor = (invoiceType: string): "scaleWeight" | "weight" =
   String(invoiceType).toLowerCase() === "entry" ? "scaleWeight" : "weight";
 
 /**
- * `invoices.date` is canonically **ISO Gregorian** (`YYYY-MM-DD`) everywhere in this app (the UI
- * renders it as Jalali). This normalises any input to that contract:
- *  - ISO (`2026-10-10`) stays as-is,
- *  - Jalali (`1405/07/18` — e.g. sent by the weighbridge form) is converted,
- *  - otherwise the Gregorian day of the weighing timestamp is used.
+ * `invoices.date` is canonically **Jalali `YYYY/MM/DD`** everywhere in this app (the UI renders it
+ * as Jalali too; `shared/jalali.ts` documents `1404/06/25` as "the exact format the invoice rows
+ * use"). This normalises any input to that contract:
+ *  - Jalali (`1405/07/18`) stays as-is,
+ *  - ISO Gregorian (`2026-10-10`) is converted,
+ *  - otherwise the weighing timestamp's day is used.
  *
- * Regression it fixes: invoices created from a weighing ticket used to be stored with a JALALI
- * date, so the day screens (which match `date === formatToISODate(day)`) never showed them.
+ * WHY THIS CHANGED (Phase 2 — the «KPIs read 0 / date filters return nothing» defect): this helper
+ * used to emit Gregorian ISO, which made the weighbridge flow the ONLY writer producing a format
+ * the rest of the system cannot read: `eq(invoices.date, todayJalali)` in `/manager/kpi` could
+ * never match, and the TEXT `startDate`/`endDate` comparison in `/api/invoices` sorted those rows
+ * outside every Jalali range. The authoritative normalisation now lives in the shared
+ * `createInvoiceInTransaction` (format-tolerant `jalaliText`); this wrapper exists so the value is
+ * already canonical at the source.
  */
-const isoInvoiceDate = (value: unknown, fallbackWeighTime: unknown): string => {
-  const s = String(value ?? "").trim();
-  const m = /^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/.exec(s);
-  if (m) {
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const d = Number(m[3]);
-    if (y >= 1700) return `${m[1]}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const g = toGregorian(y, mo, d);
-    return `${g.gy}-${String(g.gm).padStart(2, "0")}-${String(g.gd).padStart(2, "0")}`;
-  }
-  const w = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(fallbackWeighTime ?? ""));
-  return w ? `${w[1]}-${w[2]}-${w[3]}` : new Date().toISOString().slice(0, 10);
-};
+const invoiceDateText = (value: unknown, fallbackWeighTime: unknown): string =>
+  jalaliText(String(value ?? '')) || jalaliText(String(fallbackWeighTime ?? ''));
 
 /**
  * «خالص‌شده» (netted) — the ticket's SECOND weighing is done.
@@ -1346,7 +1340,7 @@ router.post("/records/:id/create-remittance", requireRole("ADMIN", "MANAGER"), a
       const weight = typedWeight !== null ? typedWeight : net;
       // `invoices.date` is stored ISO (`YYYY-MM-DD`) like the rest of the app (the UI renders it
       // Jalali); Jalali input from the weighbridge form is converted here.
-      const date = isoInvoiceDate(asText(b.date), (rec as any).weighTime);
+      const date = invoiceDateText(asText(b.date), (rec as any).weighTime);
       // شماره حواله comes from the scale's own ShomareHavale on fully-weighed tickets — it is NOT
       // the ticket serial (external_id), and an incomplete ticket has no remittance number yet.
       const scaleHavale =

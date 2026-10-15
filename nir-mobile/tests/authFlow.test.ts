@@ -117,15 +117,18 @@ test('Mobile Auth API Flow & Role/Preview Security Unit Tests', async (t) => {
   setApiBaseUrl(baseUrl);
 
   try {
-    await t.test('KNOWN_ROLES includes OPERATOR and rejects unsupported ACCOUNTING on mobile', () => {
-      assert.ok(KNOWN_ROLES.includes('OPERATOR'));
-      assert.equal(isKnownRole('DRIVER'), true);
-      assert.equal(isKnownRole('FARMER'), true);
-      assert.equal(isKnownRole('MANAGER'), true);
-      assert.equal(isKnownRole('ADMIN'), true);
-      assert.equal(isKnownRole('OPERATOR'), true);
+    await t.test('KNOWN_ROLES covers every role the mobile app can open a session for', () => {
+      for (const role of ['DRIVER', 'FARMER', 'MANAGER', 'ADMIN', 'OPERATOR', 'ACCOUNTING']) {
+        assert.equal(isKnownRole(role), true, `${role} must be a known mobile role`);
+      }
+      // ACCOUNTING is new in this phase: the backend already grants it on the invoice/report surface,
+      // so the client must not bounce the user back to the login screen after a successful sign-in.
+      assert.ok(KNOWN_ROLES.includes('ACCOUNTING'));
       assert.equal(isKnownRole('operator'), true);
-      assert.equal(isKnownRole('ACCOUNTING'), false);
+
+      // VIEWER stays OUT on purpose: it is the read-only WEB role and every write it attempts is
+      // rejected server-side by `blockViewerWrites`, so giving it a navigator would only produce 403s.
+      assert.equal(isKnownRole('VIEWER'), false);
       assert.equal(isKnownRole('UNKNOWN'), false);
       assert.equal(isKnownRole(''), false);
     });

@@ -66,6 +66,8 @@ export function ScreenContainer({
       ? { title: 'ایستگاه باسکول و حواله', icon: 'scaleGlyph' }
       : role === 'ADMIN'
       ? { title: 'مدیریت ارشد کارخانه', icon: 'shieldCheck' }
+      : role === 'ACCOUNTING'
+      ? { title: 'حسابداری و تسویهٔ حواله‌ها', icon: 'wallet' }
       : { title: 'اتاق کنترل و مدیریت کارخانه', icon: 'factoryAlt' };
 
   const userDisplay = user?.fullName || user?.username || 'کاربر سامانه';

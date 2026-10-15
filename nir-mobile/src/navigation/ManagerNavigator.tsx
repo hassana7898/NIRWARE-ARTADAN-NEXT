@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
 import { ManagerKpiScreen } from '../screens/manager/ManagerKpiScreen';
 import { RemittancesScreen } from '../screens/manager/RemittancesScreen';
 import { WeighbridgeMonitorScreen } from '../screens/manager/WeighbridgeMonitorScreen';
@@ -18,6 +19,14 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function ManagerTabs() {
+  const { role } = useAuth();
+  const isAccounting = role === 'ACCOUNTING';
+
+  // ACCOUNTING is granted on the invoice/report surface by the backend
+  // (server/routes/invoices.ts, server/routes/sync.ts) but NOT on the manager-only mobile
+  // endpoints — /manager/kpi, /manager/proofs and /manager/unmatched-drivers all require
+  // ADMIN|MANAGER. Those tabs are therefore hidden here; every endpoint still enforces the
+  // same rule server-side, so this is a UX affordance and never the security control.
   return (
     <Tab.Navigator
       screenOptions={{
@@ -28,16 +37,18 @@ function ManagerTabs() {
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
-      <Tab.Screen
-        name="ManagerKpi"
-        component={ManagerKpiScreen}
-        options={{
-          tabBarLabel: 'شاخص‌ها',
-          tabBarIcon: ({ color }) => (
-            <Icon name="managerKpi" size={22} color={color} accessibilityLabel="شاخص‌ها" />
-          ),
-        }}
-      />
+      {isAccounting ? null : (
+        <Tab.Screen
+          name="ManagerKpi"
+          component={ManagerKpiScreen}
+          options={{
+            tabBarLabel: 'شاخص‌ها',
+            tabBarIcon: ({ color }) => (
+              <Icon name="managerKpi" size={22} color={color} accessibilityLabel="شاخص‌ها" />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="Remittances"
         component={RemittancesScreen}
@@ -58,23 +69,25 @@ function ManagerTabs() {
           ),
         }}
       />
-      <Tab.Screen
-        name="InventoryMonitor"
-        component={InventoryMonitorScreen}
-        options={{
-          tabBarLabel: 'انبار و سیلو',
-          tabBarIcon: ({ color }) => (
-            <Icon name="managerInventory" size={22} color={color} accessibilityLabel="انبار و سیلو" />
-          ),
-        }}
-      />
+      {isAccounting ? null : (
+        <Tab.Screen
+          name="InventoryMonitor"
+          component={InventoryMonitorScreen}
+          options={{
+            tabBarLabel: 'انبار و سیلو',
+            tabBarIcon: ({ color }) => (
+              <Icon name="managerInventory" size={22} color={color} accessibilityLabel="انبار و سیلو" />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="MoreMenu"
         component={MoreMenuScreen}
         options={{
-          tabBarLabel: 'امکانات بیشتر',
+          tabBarLabel: 'بیش‌تر',
           tabBarIcon: ({ color }) => (
-            <Icon name="managerMore" size={22} color={color} accessibilityLabel="امکانات بیشتر" />
+            <Icon name="managerMore" size={22} color={color} accessibilityLabel="بیش‌تر" />
           ),
         }}
       />

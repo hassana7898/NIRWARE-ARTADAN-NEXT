@@ -1,6 +1,17 @@
-export type UserRole = 'DRIVER' | 'FARMER' | 'MANAGER' | 'ADMIN' | 'OPERATOR';
+export type UserRole = 'DRIVER' | 'FARMER' | 'MANAGER' | 'ADMIN' | 'OPERATOR' | 'ACCOUNTING';
 
-export const KNOWN_ROLES: UserRole[] = ['DRIVER', 'FARMER', 'MANAGER', 'ADMIN', 'OPERATOR'];
+/**
+ * Roles the MOBILE app can open a session for.
+ *
+ * `ACCOUNTING` is included because the backend already grants it write access on the invoice
+ * surface (`server/routes/invoices.ts` allows ACCOUNTING on POST/PUT/bulk-move/order, and
+ * `server/routes/sync.ts` allows it too). Excluding it here used to bounce a real accounting user
+ * straight back to the login screen after a successful server-side authentication.
+ *
+ * `VIEWER` stays OUT on purpose: it is the read-only web role, and the backend rejects every write
+ * it attempts (`blockViewerWrites`), so giving it a navigator would only produce 403s.
+ */
+export const KNOWN_ROLES: UserRole[] = ['DRIVER', 'FARMER', 'MANAGER', 'ADMIN', 'OPERATOR', 'ACCOUNTING'];
 
 /** Fail-closed role check: anything the server did not explicitly issue keeps the user signed out. */
 export const isKnownRole = (role: unknown): role is UserRole =>

@@ -24,6 +24,13 @@ export interface InvoiceQueryInput {
   endDate?: string | null;
   page?: number;
   pageSize?: number;
+  /**
+   * Server-side narrowing the previous client never sent. `findInvoicesWithPagination` has
+   * supported both since Phase 1 (`server/repositories/invoiceRepository.ts`), so these are real
+   * filters against real columns — not client-side decoration.
+   */
+  farmerId?: string | null;
+  productId?: string | null;
 }
 
 export const MIN_PAGE_SIZE = 1;
@@ -62,6 +69,12 @@ export const buildInvoiceQuery = (input: InvoiceQueryInput): Record<string, stri
 
   const search = String(input.search ?? '').trim();
   if (search) params.search = search;
+
+  const farmerId = String(input.farmerId ?? '').trim();
+  if (farmerId) params.farmerId = farmerId;
+
+  const productId = String(input.productId ?? '').trim();
+  if (productId) params.productId = productId;
 
   if (isValidJalaliDate(input.startDate)) params.startDate = String(input.startDate).trim();
   if (isValidJalaliDate(input.endDate)) params.endDate = String(input.endDate).trim();
