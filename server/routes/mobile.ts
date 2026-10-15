@@ -1843,11 +1843,23 @@ router.get('/manager/kpi', requireAuth, requireRole('ADMIN', 'MANAGER'), async (
   try {
     const todayJalali = jalaliText(new Date());
 
-    // Invoices for today
-    const todayInvoices = await db
-      .select()
-      .from(invoices)
-      .where(and(isNull(invoices.deletedAt), eq(invoices.date, todayJalali)));
+    // Format-tolerant "today" match. `invoices.date` is a TEXT column whose canonical value is
+    // Jalali `YYYY/MM/DD` (see `createInvoiceInTransaction`), but rows created by the weighbridge
+    // `create-remittance` flow used to be written as ISO Gregorian. An exact `eq(date, jalali)`
+    // therefore silently read 0 for those rows, which is how the KPI screen came to report zeros
+    // while real invoices existed. Matching BOTH spellings fixes the read side without rewriting
+    // any historical row; `dateDayNumber` folds the two calendars onto one day number.
+    const todayIso = toIsoDateText(todayJalali);
+    const todayDay = dateDayNumber(todayJalali);
+    const sameDay = (a: string) => {
+      if (!a) return false;
+      if (a === todayJalali || a === todayIso) return true;
+      const n = dateDayNumber(a);
+      return n !== null && todayDay !== null && n === todayDay;
+    };
+
+    const todayRows = await db.select().from(invoices).where(isNull(invoices.deletedAt));
+    const todayInvoices = todayRows.filter((inv: any) => sameDay(String(inv.date || '')));
 
     let entryTonnageKg = 0;
     let exitTonnageKg = 0;

@@ -5,6 +5,7 @@ import { invoices, inventory_transactions, products, farmers, weighbridge_record
 import { getInventoryStockByDate, recordInventoryTransaction, createReversingTransaction, recalculateLedgerBalances, recalculateProductStock } from './inventoryService';
 import { recordAudit, buildInvoiceDiff, describeChanges, type AuditActor } from './auditService';
 import { farmerNameKey, normalizePersianText } from '../../shared/persianText';
+import { jalaliText } from '../../shared/jalali';
 
 export interface InvoiceInput {
   id?: string;
@@ -155,9 +156,22 @@ export const createInvoiceInTransaction = async (tx: any, data: InvoiceInput, ac
   // Resolve the farmer BEFORE the insert: an offline-created farmer id may resolve to an existing
   // row with the same normalised name, and the invoice must point at the surviving row.
   let resolvedFarmerId: string | null = data.farmerId || null;
+
+  // CANONICAL DATE FORMAT (root cause of the "KPIs read 0" and "date filters return nothing"
+  // defects): `invoices.date` is a TEXT column whose canonical value is the Jalali `YYYY/MM/DD`
+  // form — `shared/jalali.ts` documents `1404/06/25` as "the exact format the invoice rows use",
+  // and every writer (web sync, the operator's quick remittance, the test fixtures) produced it.
+  // The weighbridge `create-remittance` flow was the ONLY one converting to ISO Gregorian, so its
+  // rows were invisible to `eq(invoices.date, todayJalali)` in `/manager/kpi` and to the Jalali
+  // `startDate`/`endDate` range comparison in `/api/invoices`. `jalaliText` is format-tolerant
+  // (it accepts ISO, a Date, or Jalali), so this normalisation is a no-op for well-formed Jalali
+  // input and repairs the ISO case — WITHOUT rewriting any existing row.
+  const resolvedDate = jalaliText(String(data.date ?? ''));
+  if (!resolvedDate) throw contractError('VALIDATION_FAILED', 'تاریخ حواله نامعتبر یا خالی است.', 400);
+
   if (data.type === 'exit') {
     resolvedFarmerId = await ensureFarmerExists(tx, String(data.farmerId || ''), data.farmerName);
-    await ensureSufficientStock(tx, data.productId, data.date, Number(data.weight || 0));
+    await ensureSufficientStock(tx, data.productId, resolvedDate, Number(data.weight || 0));
   }
 
   // The entry wastage (افت) is DERIVED from the two weights, never trusted from the payload: an
@@ -170,7 +184,7 @@ export const createInvoiceInTransaction = async (tx: any, data: InvoiceInput, ac
   await tx.insert(invoices).values({
     id,
     type: data.type,
-    date: data.date,
+    date: resolvedDate,
     productId: data.productId,
     productName: data.productName || null,
     driverName: data.driverName || null,
@@ -198,10 +212,10 @@ export const createInvoiceInTransaction = async (tx: any, data: InvoiceInput, ac
   });
 
   if (data.type === 'entry') {
-    await recordInventoryTransaction(tx, { date: data.date, productId: data.productId, type: 'entry', quantity: Number(data.scaleWeight), referenceType: 'invoice', referenceId: id, notes: `حواله ورود از ${data.sellerName || 'نامشخص'} - بارنامه ${data.billNumber || '-'}` });
+    await recordInventoryTransaction(tx, { date: resolvedDate, productId: data.productId, type: 'entry', quantity: Number(data.scaleWeight), referenceType: 'invoice', referenceId: id, notes: `حواله ورود از ${data.sellerName || 'نامشخص'} - بارنامه ${data.billNumber || '-'}` });
   } else if (data.type === 'exit') {
     const qty = Number(data.weight);
-    await recordInventoryTransaction(tx, { date: data.date, productId: data.productId, type: 'exit', quantity: -qty, referenceType: 'invoice', referenceId: id, notes: `حواله خروج به مرغدار - فاکتور ${data.invoiceNumber || '-'}` });
+    await recordInventoryTransaction(tx, { date: resolvedDate, productId: data.productId, type: 'exit', quantity: -qty, referenceType: 'invoice', referenceId: id, notes: `حواله خروج به مرغدار - فاکتور ${data.invoiceNumber || '-'}` });
   }
 
   // Audit trail, inside the same transaction: it cannot be skipped by the client and always
@@ -212,12 +226,12 @@ export const createInvoiceInTransaction = async (tx: any, data: InvoiceInput, ac
     targetIds: [id],
     context: {
       type: data.type,
-      date: data.date,
+      date: resolvedDate,
       productId: data.productId,
       weight: data.type === 'entry' ? data.scaleWeight : data.weight,
       farmerId: data.farmerId || null,
     },
-    details: `ایجاد حواله ${data.type === 'entry' ? 'ورود' : 'خروج'} — ${data.productName || data.productId} (تاریخ ${data.date})`,
+    details: `ایجاد حواله ${data.type === 'entry' ? 'ورود' : 'خروج'} — ${data.productName || data.productId} (تاریخ ${resolvedDate})`,
   });
 
   return id;
@@ -253,7 +267,9 @@ export const updateInvoiceInTransaction = async (tx: any, id: string, data: Part
   if (data.notes !== undefined) updatePayload.notes = data.notes === null ? null : String(data.notes);
 
   const invoiceType = data.type || prev.type;
-  const invDate = data.date || prev.date;
+  // Same canonical-Jalali normalisation as the create path, so an edit cannot reintroduce an ISO
+  // Gregorian value into a column the rest of the system reads as `YYYY/MM/DD`.
+  const invDate = jalaliText(String(data.date ?? prev.date ?? ''));
   const productId = data.productId || prev.productId;
   const farmerId = data.farmerId !== undefined ? data.farmerId : prev.farmerId;
 
