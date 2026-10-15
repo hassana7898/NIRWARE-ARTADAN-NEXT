@@ -82,7 +82,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
+          # NOTE: `cache: gradle` is deliberately NOT used here - the Android project does not exist
+          # until the `expo prebuild` step below, so the Gradle hash would have no files to match.
 
       - name: 5. Setup Android SDK
         uses: android-actions/setup-android@v3
