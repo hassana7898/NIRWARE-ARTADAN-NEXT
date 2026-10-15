@@ -87,6 +87,12 @@ jobs:
 
       - name: 5. Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # `tools` is NOT listed: Google removed the legacy SDK Tools package from the repository
+          # (replaced by cmdline-tools), and requesting it makes sdkmanager exit 1.
+          packages: platform-tools platforms;android-34 build-tools;34.0.0
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: true
 
       - name: 6. Install root monorepo dependencies (provides tsx and shared tooling)
         working-directory: .
