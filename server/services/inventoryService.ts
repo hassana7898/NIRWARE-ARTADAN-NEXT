@@ -1,0 +1,148 @@
+import { and, eq, lte, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import { db } from '../db';
+import { inventory_transactions, inventory_adjustments, products } from '../db/schema';
+
+export interface RecordTransactionParams {
+  date: string;
+  productId: string;
+  type: 'entry' | 'exit' | 'production_in' | 'production_out' | 'adjustment' | 'return_in' | 'return_out' | 'return';
+  quantity: number;
+  referenceType?: 'invoice' | 'production_record' | 'inventory_adjustment' | 'manual';
+  referenceId?: string;
+  batchId?: string;
+  notes?: string;
+  /** Immutable-ledger link: the transaction id this entry reverses. */
+  reversalOf?: string | null;
+}
+
+const calculateStock = async (tx: any, productId: string, untilDateStr?: string): Promise<number> => {
+  const condition = untilDateStr
+    ? and(eq(inventory_transactions.productId, productId), lte(inventory_transactions.date, untilDateStr))
+    : eq(inventory_transactions.productId, productId);
+
+  const rows = await tx
+    .select({ total: sql<string>`coalesce(sum(cast(${inventory_transactions.quantity} as numeric)), 0)` })
+    .from(inventory_transactions)
+    .where(condition);
+
+  return parseFloat(rows[0]?.total || '0') || 0;
+};
+
+export const recalculateProductStock = async (tx: any, productId: string): Promise<number> => {
+  const total = await calculateStock(tx, productId);
+  const existing = await tx.select({ id: products.id }).from(products).where(eq(products.id, productId)).limit(1);
+  if (existing.length > 0) {
+    await tx.update(products).set({ currentStock: String(total), updatedAt: new Date() }).where(eq(products.id, productId));
+  }
+  return total;
+};
+
+export const recordInventoryTransaction = async (tx: any, params: RecordTransactionParams): Promise<string> => {
+  if (!Number.isFinite(params.quantity)) throw new Error('مقدار تراکنش انبار نامعتبر است.');
+  if (!params.productId) throw new Error('محصول برای تراکنش انبار الزامی است.');
+
+  // Serialize writers per product inside the caller's transaction so concurrent ledger
+  // writers (online + offline sync) cannot lose each other's updates during the
+  // read-modify-write of balance_after / currentStock. Lock is released at transaction end.
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${params.productId}))`);
+
+  const transactionId = randomUUID();
+  const now = new Date();
+  await tx.insert(inventory_transactions).values({
+    id: transactionId,
+    date: params.date,
+    productId: params.productId,
+    type: params.type,
+    quantity: String(params.quantity),
+    referenceType: params.referenceType || 'manual',
+    referenceId: params.referenceId || null,
+    reversalOf: params.reversalOf || null,
+    batchId: params.batchId || null,
+    notes: params.notes || null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await recalculateLedgerBalances(tx, [params.productId]);
+  await recalculateProductStock(tx, params.productId);
+  return transactionId;
+};
+
+/**
+ * Recompute the `balance_after` running snapshot for one or more product ledgers.
+ *
+ * `balance_after` is a pure function of the ledger: the running SUM(quantity) partitioned by
+ * product and ordered deterministically by (date, created_at, id). Recomputing the whole
+ * affected ledger (rather than only the new row) keeps every later snapshot correct when a
+ * row is inserted or re-dated out of order. Must run inside the caller's transaction so the
+ * write and the balances commit atomically.
+ */
+export const recalculateLedgerBalances = async (tx: any, productIds?: string[]): Promise<void> => {
+  if (productIds && productIds.length === 0) return;
+  const filter = productIds && productIds.length
+    ? sql`WHERE product_id IN (${sql.join(productIds.map((id) => sql`${id}`), sql`, `)})`
+    : sql``;
+  await tx.execute(sql`
+    UPDATE inventory_transactions AS t
+    SET balance_after = s.runbal
+    FROM (
+      SELECT id,
+             SUM(quantity) OVER (PARTITION BY product_id ORDER BY date, created_at, id ROWS UNBOUNDED PRECEDING) AS runbal
+      FROM inventory_transactions
+      ${filter}
+    ) AS s
+    WHERE t.id = s.id
+  `);
+};
+
+export const createReversingTransaction = async (tx: any, referenceId: string): Promise<void> => {
+  const affected = await tx.select().from(inventory_transactions).where(eq(inventory_transactions.referenceId, referenceId));
+  // Entries that already carry a reversal must never be reversed twice (idempotent deletes).
+  const alreadyReversed = new Set(affected.map((r: any) => r.reversalOf).filter(Boolean));
+
+  for (const trans of affected) {
+    // Avoid double reversing
+    if (trans.type === 'reversal') continue;
+    if (alreadyReversed.has(trans.id)) continue;
+
+    await recordInventoryTransaction(tx, {
+      date: trans.date, // Preserve original date for correct historical calculation
+      productId: trans.productId,
+      type: 'reversal' as any, // Assuming we allow 'reversal' as a string in type
+      quantity: -Number(trans.quantity),
+      referenceType: trans.referenceType as any,
+      referenceId: referenceId, // keep reference to original entity
+      reversalOf: trans.id, // immutable-ledger link to the reversed entry
+      notes: `Reversal of transaction ${trans.id}`
+    });
+  }
+};
+
+export const getInventoryStockByDate = async (untilDateStr?: string, txArg?: any): Promise<Record<string, number>> => {
+  const executor = txArg || db;
+  const rows = untilDateStr
+    ? await executor.select({ productId: inventory_transactions.productId, total: sql<string>`coalesce(sum(cast(${inventory_transactions.quantity} as numeric)), 0)` }).from(inventory_transactions).where(lte(inventory_transactions.date, untilDateStr)).groupBy(inventory_transactions.productId)
+    : await executor.select({ productId: inventory_transactions.productId, total: sql<string>`coalesce(sum(cast(${inventory_transactions.quantity} as numeric)), 0)` }).from(inventory_transactions).groupBy(inventory_transactions.productId);
+
+  const stockMap: Record<string, number> = {};
+  for (const row of rows) stockMap[row.productId] = parseFloat(row.total || '0') || 0;
+  return stockMap;
+};
+
+export const performInventoryAdjustment = async (data: { date: string; productId: string; newQuantity: number; reason?: string }): Promise<string> => {
+  if (!Number.isFinite(data.newQuantity)) throw new Error('موجودی جدید نامعتبر است.');
+
+  return db.transaction(async (tx: any) => {
+    const adjustmentId = randomUUID();
+    const currentStocks = await getInventoryStockByDate(data.date, tx);
+    const currentQty = currentStocks[data.productId] || 0;
+    const diff = data.newQuantity - currentQty;
+
+    await tx.insert(inventory_adjustments).values({ id: adjustmentId, date: data.date, productId: data.productId, newQuantity: String(data.newQuantity), reason: data.reason || null, createdAt: new Date(), updatedAt: new Date() });
+    if (diff !== 0) {
+      await recordInventoryTransaction(tx, { date: data.date, productId: data.productId, type: 'adjustment', quantity: diff, referenceType: 'inventory_adjustment', referenceId: adjustmentId, notes: data.reason || 'تعدیل دستی موجودی انبار' });
+    }
+    return adjustmentId;
+  });
+};

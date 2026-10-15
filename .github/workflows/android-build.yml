@@ -1,0 +1,155 @@
+name: Build Android APK (NIRWARE Mobile)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_variant:
+        description: 'Build variant (dev -> ir.artadan.nir.dev / dev.artadan.ir, production -> ir.artadan.nir / app.artadan.ir)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - production
+      api_url:
+        description: 'Optional custom API URL (leave empty to use the verified default for the selected variant)'
+        required: false
+        default: ''
+
+jobs:
+  build-apk:
+    name: Build Installable Android APK (Expo SDK 51 / RN 0.74)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_UI_PREVIEW: '0'
+
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 2. Resolve and verify target API environment (no demo fallback)
+        id: env_cfg
+        run: |
+          VARIANT="${{ inputs.app_variant }}"
+          RAW_URL="${{ inputs.api_url }}"
+          if [ -z "$RAW_URL" ]; then
+            if [ "$VARIANT" = "production" ]; then
+              API_URL="https://app.artadan.ir"
+            else
+              API_URL="https://dev.artadan.ir"
+            fi
+          else
+            API_URL="${RAW_URL%/}"
+          fi
+
+          if [ "$EXPO_PUBLIC_UI_PREVIEW" = "1" ]; then
+            echo "::error::EXPO_PUBLIC_UI_PREVIEW must never be enabled in APK builds."
+            exit 1
+          fi
+
+          echo "APP_VARIANT=$VARIANT" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_API_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "variant=$VARIANT" >> "$GITHUB_OUTPUT"
+          echo "api_url=$API_URL" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved APP_VARIANT         : $VARIANT"
+          echo "Resolved EXPO_PUBLIC_API_URL : $API_URL"
+          echo "Checking live /api/mobile/meta endpoint..."
+          HTTP_CODE=$(curl -sS -o /tmp/meta.json -w "%{http_code}" --max-time 15 "$API_URL/api/mobile/meta" || echo "000")
+          echo "Health check HTTP status     : $HTTP_CODE"
+          if [ -f /tmp/meta.json ]; then
+            cat /tmp/meta.json
+            echo ""
+          fi
+
+      - name: 3. Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: nir-mobile/package-lock.json
+
+      - name: 4. Setup Java JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 5. Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 6. Install mobile dependencies (npm ci)
+        working-directory: nir-mobile
+        run: npm ci
+
+      - name: 7. Run mobile TypeScript typecheck & unit tests
+        working-directory: nir-mobile
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: 8. Run Expo Prebuild (generate native Android project in CI)
+        working-directory: nir-mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: 9. Assemble Release APK with Gradle
+        working-directory: nir-mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease \
+            -Dkotlin.compiler.execution.strategy=in-process \
+            -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m" \
+            --no-daemon \
+            --stacktrace \
+            --warning-mode summary
+
+      - name: 10. Verify generated APK and compute SHA-256
+        id: apk_verify
+        working-directory: nir-mobile/android/app/build/outputs/apk/release
+        run: |
+          APK_FILE="app-release.apk"
+          if [ ! -f "$APK_FILE" ]; then
+            echo "::error::Expected $APK_FILE was not found!"
+            exit 1
+          fi
+          OUT_NAME="nirware-${APP_VARIANT}-v1.0.2-run${GITHUB_RUN_NUMBER}.apk"
+          cp "$APK_FILE" "$OUT_NAME"
+          SIZE_BYTES=$(stat -c%s "$OUT_NAME")
+          SHA256=$(sha256sum "$OUT_NAME" | awk '{print $1}')
+          echo "apk_name=$OUT_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_size=$SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "apk_sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          ls -lh "$OUT_NAME"
+          echo "SHA256: $SHA256"
+
+      - name: 11. Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nirware-${{ steps.env_cfg.outputs.variant }}-apk
+          path: nir-mobile/android/app/build/outputs/apk/release/${{ steps.apk_verify.outputs.apk_name }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 12. Write Build Summary
+        if: always()
+        run: |
+          {
+            echo "## NIRWARE Android APK Build Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Status | \`${{ job.status }}\` |"
+            echo "| App Variant | \`${{ steps.env_cfg.outputs.variant }}\` |"
+            echo "| API Target | \`${{ steps.env_cfg.outputs.api_url }}\` |"
+            echo "| Demo / Preview Mode | \`DISABLED (EXPO_PUBLIC_UI_PREVIEW=0)\` |"
+            echo "| APK File | \`${{ steps.apk_verify.outputs.apk_name }}\` |"
+            echo "| Size (bytes) | \`${{ steps.apk_verify.outputs.apk_size }}\` |"
+            echo "| SHA-256 | \`${{ steps.apk_verify.outputs.apk_sha256 }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,51 @@
+node_modules/
+dist/
+dist-dev/
+dist-web/
+nir-mobile/dist-web/
+
+dist-ssr/
+*.local
+
+# Environment / secrets (NEVER commit)
+.env
+.env.*
+!.env.example
+.npmrc
+
+# Build & release artifacts
+release/
+runtime/
+*.zip
+*.log
+
+# Runtime data
+data/
+backups/
+certs/
+*.pem
+*.pfx
+
+# Scratch / session artifacts (tsc, build, probe outputs)
+tsc-*.txt
+tsc-*.err
+build-*.log
+build-*.txt
+build-*.err
+*.done
+*-done.txt
+*-out.txt
+*-err.txt
+npm-test*.txt
+mt-*.txt
+eas-*.txt
+logs/
+local-server*.log
+npm-install.log
+.eslintcache
+tmp/
+scratch/
+.agents/
+skills-lock.json
+test-output.txt
+test-result.txt

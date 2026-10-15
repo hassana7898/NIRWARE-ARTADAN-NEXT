@@ -1,0 +1,339 @@
+import express from "express";
+import path from "path";
+import fs from "fs";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+import { db, checkDbHealth } from "./server/db";
+import { GoogleGenAI, Type } from "@google/genai";
+
+import { securityHeaders } from "./server/middleware/security";
+import { corsMiddleware } from "./server/middleware/cors";
+import { apiRateLimiter, authRateLimiter } from "./server/middleware/rateLimit";
+import { requireAuth, blockViewerWrites } from "./server/middleware/auth";
+
+import authRouter from "./server/routes/auth";
+import settingsRouter from "./server/routes/settings";
+import farmersRouter from "./server/routes/farmers";
+import driversRouter from "./server/routes/drivers";
+import originsRouter from "./server/routes/origins";
+import invoicesRouter from "./server/routes/invoices";
+import auditRouter from "./server/routes/audit";
+import reportsRouter from "./server/routes/reports";
+import inventoryRouter from "./server/routes/inventory";
+import productionRouter from "./server/routes/production";
+import formulasRouter from "./server/routes/formulas";
+import warehousesRouter from "./server/routes/warehouses";
+import usersRouter from "./server/routes/users";
+import syncRouter from "./server/routes/sync";
+import weighbridgeRouter from "./server/routes/weighbridge";
+import backupRouter from "./server/routes/backup";
+import { restoreLegacySnapshot } from "./server/services/legacyImport";
+import uploadRouter from "./server/routes/uploads";
+import mobileAuthRouter from "./server/routes/mobileAuth";
+import mobileRouter from "./server/routes/mobile";
+import mobileManagerRouter from "./server/routes/mobileManager";
+import { startBackupScheduler } from "./server/scheduler";
+
+export const app = express();
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// Bind host: env-driven, defaulting to loopback. Production must never expose the
+// app port directly; nginx proxies to it.
+const HOST = (process.env.HOST || "127.0.0.1").trim() || "127.0.0.1";
+
+// Nginx runs on this host and forwards the real client IP. Trusting only the loopback
+// proxy makes req.ip (used by the rate limiters) the actual client.
+app.set("trust proxy", "loopback");
+
+// API responses must never be cached: Express' default ETag made the browser send
+// If-None-Match and receive a 304 with an empty body for /api/auth/status, which the
+// client interpreted as a failure and replaced with a STALE local answer (the app then
+// showed the login screen even though the database was empty).
+app.set("etag", false);
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+const uploadsPath = path.resolve(
+  process.env.UPLOAD_DIR || process.env.NIR_UPLOADS_PATH || path.join(process.cwd(), "data", "uploads")
+);
+app.use("/uploads", express.static(uploadsPath));
+
+// ---------------------------------------------------------------- health
+app.get("/api/health", async (_req, res) => {
+  const database = await checkDbHealth();
+  const healthy = database.status === "connected";
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    service: "nir-production",
+    database,
+    time: new Date().toISOString(),
+  });
+});
+
+// ---------------------------------------------------------------- auth
+app.use("/api/auth", authRateLimiter, authRouter);
+
+// -------------------------------------------------- authenticated business APIs
+app.use("/api/settings", apiRateLimiter, requireAuth, blockViewerWrites, settingsRouter);
+app.use("/api/farmers", apiRateLimiter, requireAuth, blockViewerWrites, farmersRouter);
+app.use("/api/drivers", apiRateLimiter, requireAuth, blockViewerWrites, driversRouter);
+app.use("/api/origins", apiRateLimiter, requireAuth, blockViewerWrites, originsRouter);
+app.use("/api/invoices", apiRateLimiter, requireAuth, blockViewerWrites, invoicesRouter);
+app.use("/api/audit", apiRateLimiter, requireAuth, blockViewerWrites, auditRouter);
+app.use("/api/reports", apiRateLimiter, requireAuth, blockViewerWrites, reportsRouter);
+app.use("/api/inventory", apiRateLimiter, requireAuth, blockViewerWrites, inventoryRouter);
+app.use("/api/production", apiRateLimiter, requireAuth, blockViewerWrites, productionRouter);
+app.use("/api/formulas", apiRateLimiter, requireAuth, blockViewerWrites, formulasRouter);
+app.use("/api/warehouses", apiRateLimiter, requireAuth, blockViewerWrites, warehousesRouter);
+app.use("/api/users", apiRateLimiter, requireAuth, blockViewerWrites, usersRouter);
+app.use("/api/sync", apiRateLimiter, requireAuth, blockViewerWrites, syncRouter);
+app.use("/api/backup", apiRateLimiter, requireAuth, blockViewerWrites, backupRouter);
+app.use("/api/uploads", apiRateLimiter, requireAuth, blockViewerWrites, uploadRouter);
+app.use("/api/weighbridge", apiRateLimiter, requireAuth, blockViewerWrites, weighbridgeRouter);
+app.use("/api/mobile/auth", authRateLimiter, mobileAuthRouter);
+app.use("/api/mobile", apiRateLimiter, mobileRouter);
+// Manager cartable (کارتابل): orders list / order status / delivery proofs. Kept in its own
+// router so the driver+farmer endpoints in mobile.ts stay untouched; paths differ (see
+// server/routes/mobileManager.ts), so mounting order is irrelevant here.
+app.use("/api/mobile/manager", apiRateLimiter, mobileManagerRouter);
+
+// ---------------------------------------------------------------- AI extraction
+let ai: GoogleGenAI | null = null;
+const getGeminiClient = (): GoogleGenAI | null => {
+  if (!ai && process.env.GEMINI_API_KEY) ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return ai;
+};
+
+app.post("/api/extract", apiRateLimiter, requireAuth, async (req, res) => {
+  try {
+    const { base64Data, mimeType, type, knownFarmers, knownProducts, knownDrivers } = req.body;
+    const client = getGeminiClient();
+    if (!client) return res.status(503).json({ error: "API Key (GEMINI_API_KEY) is missing." });
+
+    const responseSchema = type === 'entry' ? {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          sellerName: { type: Type.STRING, nullable: true },
+          productName: { type: Type.STRING, nullable: true },
+          billWeight: { type: Type.NUMBER, nullable: true },
+          scaleWeight: { type: Type.NUMBER, nullable: true },
+          driverName: { type: Type.STRING, nullable: true },
+          billNumber: { type: Type.STRING, nullable: true },
+          origin: { type: Type.STRING, nullable: true },
+          transportCost: { type: Type.NUMBER, nullable: true },
+          driverPhone: { type: Type.STRING, nullable: true },
+          driverIBAN: { type: Type.STRING, nullable: true }
+        }
+      }
+    } : {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          farmerName: { type: Type.STRING, nullable: true },
+          productName: { type: Type.STRING, nullable: true },
+          weight: { type: Type.NUMBER, nullable: true },
+          driverName: { type: Type.STRING, nullable: true },
+          invoiceNumber: { type: Type.STRING, nullable: true }
+        }
+      }
+    };
+
+    const kf = knownFarmers && knownFarmers.length > 0 ? `\nKnown Farmers/Sellers: ${knownFarmers.join(", ")}` : "";
+    const kp = knownProducts && knownProducts.length > 0 ? `\nKnown Products: ${knownProducts.join(", ")}` : "";
+    const kd = knownDrivers && knownDrivers.length > 0 ? `\nKnown Drivers: ${knownDrivers.join(", ")}` : "";
+    const contextStr = `${kf}${kp}${kd}`;
+
+    const promptText = type === 'entry'
+      ? `Task: Extract Persian raw materials entry remittance data from this image/pdf (Right-to-Left).
+Return a JSON Array of objects.
+Columns mapped to JSON keys:
+- Seller Name (فروشنده) -> sellerName
+- Product (نام کالا) -> productName
+- Bill Weight (وزن بارنامه) -> billWeight (number)
+- Scale Weight (وزن باسکول) -> scaleWeight (number)
+- Factory (کارخانه) -> factory
+- Driver (راننده) -> driverName
+- Bill Number (شماره بارنامه) -> billNumber
+- Origin (مبدا) -> origin
+- Transport Cost (کرایه) -> transportCost (number)
+- Driver Phone (تلفن) -> driverPhone
+- Driver IBAN (شبا) -> driverIBAN
+
+CRITICAL RULES FOR EXTRACTION:
+1. SEPARATION OF SELLER AND PRODUCT: The image often physically merges Seller name and Product name. You MUST separate them.
+2. Example of bad output: sellerName="حسین ذرت", productName=null
+3. Example of good output: sellerName="حسین", productName="ذرت"
+
+CONTEXT (Known Values to Help You):${contextStr}`
+      : `Task: Extract Persian exit remittance data from this image/pdf (Right-to-Left).
+Return a JSON Array of objects.
+Columns mapped to JSON keys:
+- Farmer Name (مرغدار) -> farmerName
+- Product (نام کالا) -> productName
+- Weight (وزن) -> weight (number)
+- Driver (راننده) -> driverName
+- Invoice No (شماره فاکتور) -> invoiceNumber
+
+CRITICAL RULES FOR EXTRACTION:
+1. SEPARATION OF FARMER AND PRODUCT: The image often physically merges Farmer name and Product name. You MUST separate them.
+
+CONTEXT (Known Values to Help You):${contextStr}`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-1.5-pro',
+      contents: { parts: [{ inlineData: { mimeType, data: base64Data } }, { text: promptText }] },
+      config: { responseMimeType: "application/json", responseSchema }
+    });
+
+    if (!response.text) return res.status(500).json({ error: "Empty response from Gemini." });
+    res.json(JSON.parse(response.text.trim()));
+  } catch (error: any) {
+    console.error("Gemini Extraction Error:", error);
+    res.status(500).json({ error: error.message || "Unknown error during AI extraction." });
+  }
+});
+
+// ---------------------------------------------------------------- API 404
+app.all(/^\/api\/.*/, (req, res) => {
+  res.status(404).json({ success: false, error: { code: 'SERVER_ERROR', message: 'API endpoint not found', path: req.originalUrl } });
+});
+
+// ---------------------------------------------------------------- error handler
+const errorHandler = (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[NIR Server Error]', err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    error: { code: 'SERVER_ERROR', message: err?.message || 'خطای داخلی سرور.' },
+    ...(process.env.NODE_ENV !== 'production' ? { stack: err?.stack } : {})
+  });
+};
+
+// ---------------------------------------------------------------- bootstrap
+async function startServer() {
+  // PGlite migrations are a development/test concern only; production runs on PostgreSQL
+  // whose schema is provisioned explicitly (migrations/0001_v2_upgrade.sql).
+  if (process.env.PGLITE_TEST === 'true' && process.env.NODE_ENV !== 'production') {
+    await (db as any).migrateDb();
+    console.log("[NIR] PGlite test database migrated (development only).");
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.resolve(process.env.NIR_DIST_PATH || path.join(process.cwd(), 'dist'));
+    const assetsPath = path.join(distPath, 'assets');
+
+    // The SPA shell must NEVER be cached. A cached index.html keeps pointing at hashed
+    // assets from the previous release, and once a deploy replaces them those requests
+    // 404 and the tab renders blank. `express.static` computes its own ETag, so it has to
+    // be disabled per static mount (app.set('etag', false) does not reach it).
+    const noStoreShell = (res: express.Response) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    };
+
+    const mobileDistPath = path.join(distPath, 'mobile');
+    if (fs.existsSync(mobileDistPath)) {
+      app.use('/_expo', express.static(path.join(mobileDistPath, '_expo')));
+      if (fs.existsSync(path.join(mobileDistPath, 'assets'))) {
+        app.use('/assets', express.static(path.join(mobileDistPath, 'assets'), { fallthrough: true, immutable: true, maxAge: '1y', etag: false }));
+      }
+      app.use('/mobile', express.static(mobileDistPath, {
+        index: 'index.html',
+        fallthrough: true,
+        etag: false,
+        lastModified: false,
+        setHeaders: (res, filePath) => { if (filePath.endsWith('index.html')) noStoreShell(res); },
+      }));
+      app.get(/^\/mobile(?:\/.*)?$/, (_req, res) => {
+        noStoreShell(res);
+        res.sendFile('index.html', { root: mobileDistPath });
+      });
+    }
+
+    // Hashed asset filenames are content-addressed: cache hard, never revalidate.
+    app.use('/assets', express.static(assetsPath, { fallthrough: false, immutable: true, maxAge: '1y', etag: false }));
+    app.use(express.static(distPath, {
+      index: 'index.html',
+      fallthrough: true,
+      etag: false,
+      // no Last-Modified either: without any validator the shell can never answer 304.
+      lastModified: false,
+      setHeaders: (res, filePath) => { if (filePath.endsWith('index.html')) noStoreShell(res); },
+    }));
+    app.get(/^(?!\/api(?:\/|$)|\/uploads(?:\/|$)|\/assets(?:\/|$)|\/mobile(?:\/|$)|\/_expo(?:\/|$)).*$/, (_req, res) => {
+      noStoreShell(res);
+      res.sendFile('index.html', { root: distPath });
+    });
+    app.use('/assets', (_req, res) => res.status(404).send('Asset not found'));
+  }
+
+  app.use(errorHandler);
+
+  // Backup scheduler: start once during boot. A failure to start the scheduler must
+  // never crash the server, so it is fully guarded. Skipped under NODE_ENV=test.
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      startBackupScheduler();
+      console.log('[NIR] Backup scheduler started.');
+    } catch (err) {
+      console.error('[NIR] Failed to start backup scheduler (continuing):', err);
+    }
+  }
+
+  app.listen(PORT, HOST, () => console.log(`[NIR] Server running on http://${HOST}:${PORT}`));
+}
+
+// -----------------------------------------------------------------------------
+// Maintenance CLI (does NOT start the HTTP listener):
+//   node server.cjs --restore-legacy <file.json> [--wipe]
+// Restores a pre-V2 backup (the flat poultryApp* key -> value map) into PostgreSQL
+// using the exact same transactional importer as POST /api/backup/restore-legacy.
+// Idempotent: safe to run repeatedly. Pass --wipe for a CLEAN restore (TRUNCATE the
+// business tables first; users/sessions/settings are always preserved).
+// -----------------------------------------------------------------------------
+const entryArg = (process.argv[1] || '').replace(/\\/g, '/');
+const isMain =
+  entryArg.endsWith('/server.ts') ||
+  entryArg.endsWith('/server.cjs') ||
+  entryArg.endsWith('/server.js') ||
+  entryArg.endsWith('/dist/server.cjs');
+
+if (process.argv[2] === "--restore-legacy") {
+  (async () => {
+    const file = process.argv[3];
+    if (!file || !fs.existsSync(file)) {
+      console.error("[NIR] usage: server.cjs --restore-legacy <file.json> [--wipe]");
+      process.exit(2);
+    }
+    const wipe = process.argv.includes("--wipe");
+    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+    const report = await restoreLegacySnapshot(payload, { wipe });
+    console.log("[NIR] legacy restore report:");
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(0);
+  })().catch((err) => {
+    console.error("[NIR] legacy restore failed:", err);
+    process.exit(1);
+  });
+} else if (isMain) {
+  startServer();
+}
