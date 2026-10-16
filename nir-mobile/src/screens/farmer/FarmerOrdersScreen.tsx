@@ -1,17 +1,7 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+﻿import React, { useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { ScreenState } from '../../components/common/ScreenState';
-import { palette } from '../../theme/tokens';
-import { StatusBadge } from '../../components/common/StatusBadge';
 import { OrderFeedModal } from './OrderFeedModal';
 import { apiClient } from '../../api/client';
 import { Endpoints } from '../../api/endpoints';
@@ -23,6 +13,10 @@ import {
   type OrderStatus,
 } from '../../features/farmer/farmerOrders';
 import { formatWeight, toPersianDigits, formatJalaliDate } from '../../utils/formatters';
+import {
+  Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter,
+  Badge, Button, Skeleton, SkeletonText, cn,
+} from '../../design-system';
 
 export function FarmerOrdersScreen() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,49 +36,93 @@ export function FarmerOrdersScreen() {
   const orders: FarmerOrder[] = rawOrders.map(normalizeOrderRow);
 
   const renderOrderCard = ({ item }: { item: FarmerOrder }) => {
+    const statusVariant = orderStatusVariant(item.status);
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.headerRightBox}>
-            <Text style={styles.orderNum}>سفارش #{toPersianDigits(item.id)}</Text>
-            <Text style={styles.dateText}>
-              تاریخ درخواستی: {toPersianDigits(item.targetDate)}
+      <Card variant="elevated" size="default" className="mb-3">
+        <CardHeader>
+          <View className="flex-row justify-between items-center">
+            <View className="items-center">
+              <CardTitle className="text-lg">سفارش #{toPersianDigits(item.id)}</CardTitle>
+              <CardDescription>
+                تاریخ درخواستی: {toPersianDigits(item.targetDate)}
+              </CardDescription>
+            </View>
+            <Badge variant={statusVariant === 'success' ? 'success' : statusVariant === 'danger' ? 'destructive' : statusVariant === 'info' ? 'primary' : 'warning'} size="sm">
+              {orderStatusLabel(item.status)}
+            </Badge>
+          </View>
+        </CardHeader>
+        <CardContent className="mt-3">
+          <View className="flex-row justify-between items-baseline mb-1">
+            <Text className="font-vazirmatn text-sm text-mutedForeground">نوع جیره / محصول:</Text>
+            <Text className="font-vazirmatn text-base font-semibold text-foreground">{item.productName}</Text>
+          </View>
+          <View className="flex-row justify-between items-baseline mb-1">
+            <Text className="font-vazirmatn text-sm text-mutedForeground">تناژ درخواستی:</Text>
+            <Text className="font-vazirmatn text-base font-semibold text-emerald-600">
+              {formatWeight(item.requestedWeight)} ({toPersianDigits((item.requestedWeight / 1000).toFixed(1))} تن)
             </Text>
           </View>
-          <StatusBadge
-            status={orderStatusVariant(item.status)}
-            label={orderStatusLabel(item.status)}
-            size="sm"
-          />
-        </View>
-
-        <View style={styles.bodyRow}>
-          <Text style={styles.label}>نوع جیره / محصول:</Text>
-          <Text style={styles.value}>{item.productName}</Text>
-        </View>
-
-        <View style={styles.bodyRow}>
-          <Text style={styles.label}>تناژ درخواستی:</Text>
-          <Text style={[styles.value, styles.weightVal]}>
-            {formatWeight(item.requestedWeight)} ({toPersianDigits((item.requestedWeight / 1000).toFixed(1))} تن)
-          </Text>
-        </View>
-
-        {item.notes ? (
-          <View style={styles.notesBox}>
-            <Text style={styles.notesLabel}>توضیحات مرغدار:</Text>
-            <Text style={styles.notesText}>{item.notes}</Text>
+          {item.notes && (
+            <View className="mt-2">
+              <Text className="font-vazirmatn text-xs text-mutedForeground mb-1">توضیحات مرغدار:</Text>
+              <Text className="font-vazirmatn text-sm text-foreground">{item.notes}</Text>
+            </View>
+          )}
+          <View className="mt-3 pt-2 border-t border-border/50">
+            <Text className="font-vazirmatn text-xs text-mutedForeground text-left">
+              ثبت در سامانه: {formatJalaliDate(item.createdAt)}
+            </Text>
           </View>
-        ) : null}
-
-        <View style={styles.footerRow}>
-          <Text style={styles.timestamp}>
-            ثبت در سامانه: {formatJalaliDate(item.createdAt)}
-          </Text>
-        </View>
-      </View>
+        </CardContent>
+        <CardFooter>
+          <Button variant="outline" size="sm" className="flex-1" onPress={() => {}}>
+            مشاهده جزئیات
+          </Button>
+        </CardFooter>
+      </Card>
     );
   };
+
+  if (isLoading) {
+    return (
+      <ScreenContainer
+        title="سفارش‌های دان من"
+        subtitle="رهگیری و پیگیری آنلاین سفارش‌های جیره کارخانه"
+        scrollable={false}
+      >
+        <View className="flex-row items-center justify-center h-64">
+          <SkeletonText lines={3} className="w-3/4" />
+        </View>
+      </ScreenContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ScreenContainer
+        title="سفارش‌های دان من"
+        subtitle="خطا در بارگذاری داده‌ها"
+        scrollable={false}
+      >
+        <View className="items-center p-6">
+          <Text className="font-vazirmatn text-lg font-semibold text-destructive mb-2">
+            خطا در بارگذاری
+          </Text>
+          <Text className="font-vazirmatn text-sm text-mutedForeground text-center">
+            {error?.message || 'خطای ناشناخته'}
+          </Text>
+          <Button
+            variant="primary"
+            className="mt-4 w-48"
+            onPress={() => refetch()}
+          >
+            تلاش مجدد
+          </Button>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -94,87 +132,50 @@ export function FarmerOrdersScreen() {
       onRefresh={refetch}
       refreshing={isRefetching}
       headerRight={
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.headerBtnText}>+ ثبت سفارش</Text>
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <View className="bg-emerald-600 px-3 py-1.5 rounded-lg items-center">
+            <Text className="font-vazirmatn text-xs font-semibold text-white">+ ثبت سفارش</Text>
+          </View>
         </TouchableOpacity>
       }
     >
-      {/* Filter Chips */}
-      <View style={styles.chipsRow}>
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'all' && styles.chipActive]}
-          onPress={() => setStatusFilter('all')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'all' && styles.chipTextActive]}>
-            همه
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'pending' && styles.chipActive]}
-          onPress={() => setStatusFilter('pending')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'pending' && styles.chipTextActive]}>
-            در انتظار تأیید
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'approved' && styles.chipActive]}
-          onPress={() => setStatusFilter('approved')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'approved' && styles.chipTextActive]}>
-            تأیید شده
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'completed' && styles.chipActive]}
-          onPress={() => setStatusFilter('completed')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'completed' && styles.chipTextActive]}>
-            تحویل شده
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'rejected' && styles.chipActive]}
-          onPress={() => setStatusFilter('rejected')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'rejected' && styles.chipTextActive]}>
-            رد شده
-          </Text>
-        </TouchableOpacity>
+      <View className="flex-row gap-2 px-4 py-3 bg-surface border-b border-border">
+        {['all', 'pending', 'approved', 'completed' as const].map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-medium border',
+              statusFilter === filter
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-surface border-border text-mutedForeground'
+            )}
+            onPress={() => setStatusFilter(filter as OrderStatus)}
+          >
+            <Text className="font-vazirmatn">
+              {filter === 'all' ? 'همه' : filter === 'pending' ? 'در انتظار' : filter === 'approved' ? 'تایید شده' : 'تکمیل شده'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={palette.primary} />
-          <Text style={styles.loadingText}>در حال دریافت وضعیت سفارش‌ها...</Text>
-        </View>
-      ) : isError ? (
-        <ScreenState
-          isError
-          error={error}
-          onRetry={() => void refetch()}
-          messages={{ error: 'دریافت سفارش‌های شما ناموفق بود.' }}
-        />
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderOrderCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>سفارشی یافت نشد</Text>
-              <Text style={styles.emptySubtitle}>
-                شما در این وضعیت هنوز سفارشی ثبت نکرده‌اید. برای ثبت سفارش دان جدید، دکمه «+ ثبت سفارش» را بزنید.
-              </Text>
-            </View>
-          }
-        />
-      )}
+      <FlatList
+        data={orders}
+        renderItem={renderOrderCard}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View className="items-center p-8">
+            <Skeleton className="h-10 w-1/3 rounded-full mb-3 bg-emerald-100" />
+            <Text className="font-vazirmatn text-base font-semibold text-foreground mb-1">
+              سفارشی یافت نشد
+            </Text>
+            <Text className="font-vazirmatn text-sm text-mutedForeground text-center max-w-xs">
+              شما در این وضعیت هنوز سفارشی ثبت نکرده‌اید. برای ثبت سفارش دان جدید، دکمه «ثبت سفارش» را بزنید.
+            </Text>
+          </View>
+        }
+      />
 
       <OrderFeedModal
         visible={modalVisible}
@@ -184,163 +185,5 @@ export function FarmerOrdersScreen() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  headerBtn: {
-    backgroundColor: '#0284c7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  headerBtnText: {
-    fontFamily: 'Vazirmatn_700Bold',
-    fontSize: 12,
-    color: '#ffffff',
-  },
-  chipsRow: {
-    flexDirection: 'row-reverse',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  chipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
-  },
-  chipText: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 11,
-    color: '#64748b',
-  },
-  chipTextActive: {
-    color: '#0284c7',
-    fontFamily: 'Vazirmatn_700Bold',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 10,
-  },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 30,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 8,
-  },
-  headerRightBox: {
-    alignItems: 'flex-end',
-  },
-  orderNum: {
-    fontFamily: 'Vazirmatn_700Bold',
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  dateText: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  bodyRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  label: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 12,
-    color: '#64748b',
-  },
-  value: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 12,
-    color: '#1e293b',
-  },
-  weightVal: {
-    color: '#0284c7',
-    fontFamily: 'Vazirmatn_700Bold',
-  },
-  notesBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 6,
-    marginBottom: 6,
-  },
-  notesLabel: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 11,
-    color: '#475569',
-    textAlign: 'right',
-  },
-  notesText: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 12,
-    color: '#334155',
-    textAlign: 'right',
-    marginTop: 2,
-  },
-  footerRow: {
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#f8fafc',
-    paddingTop: 6,
-  },
-  timestamp: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 10,
-    color: '#94a3b8',
-    textAlign: 'left',
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontFamily: 'Vazirmatn_700Bold',
-    fontSize: 15,
-    color: '#475569',
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 12,
-    color: '#94a3b8',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
 
 export default FarmerOrdersScreen;

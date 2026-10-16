@@ -1,21 +1,30 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { ScreenState } from '../../components/common/ScreenState';
-import { palette } from '../../theme/tokens';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { apiClient } from '../../api/client';
 import { Endpoints } from '../../api/endpoints';
 import { formatWeight, toPersianDigits } from '../../utils/formatters';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+  Badge,
+  Button,
+  Skeleton,
+  SkeletonText,
+  cn,
+} from '../../design-system';
 
 interface WeighbridgeRecordItem {
   id: number;
@@ -55,7 +64,6 @@ export function OperatorWeighbridgeScreen() {
     const isNetted = Number(r.netWeight) > 0;
     if (statusFilter === 'netted' && !isNetted) return false;
     if (statusFilter === 'pending' && isNetted) return false;
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const match =
@@ -66,7 +74,6 @@ export function OperatorWeighbridgeScreen() {
         String(r.customerName || '').toLowerCase().includes(q);
       if (!match) return false;
     }
-
     return true;
   });
 
@@ -77,384 +84,196 @@ export function OperatorWeighbridgeScreen() {
     const isExit = item.direction === 'exit';
 
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.ticketBox}>
-            <Text style={styles.ticketLabel}>قبض:</Text>
-            <Text style={styles.ticketNum}>
-              {toPersianDigits(item.ticketNumber || item.externalId)}
-            </Text>
-            <View style={[styles.directionTag, isExit ? styles.dirExit : styles.dirEntry]}>
-              <Text style={styles.dirText}>{isExit ? 'خروج' : 'ورود'}</Text>
+      <Card variant="elevated" size="default" className="mb-3">
+        <CardHeader>
+          <View className="flex-row justify-between items-center mb-2">
+            <View className="flex-row items-center gap-2">
+              <Text className="font-vazirmatn text-xs text-mutedForeground">قبض:</Text>
+              <Text className="font-vazirmatn text-base font-bold text-foreground">
+                {toPersianDigits(item.ticketNumber || item.externalId)}
+              </Text>
+            </View>
+            <Badge
+              variant={isMapped ? 'success' : 'warning'}
+              size="sm"
+            >
+              {isMapped ? 'حواله دارد' : 'بدون حواله'}
+            </Badge>
+          </View>
+          <View className="flex-row items-center gap-2 mb-2">
+            <View className="bg-emerald-50/50 border border-emerald-200/50 px-2 py-0.5 rounded-full">
+              <Text className="font-vazirmatn text-[10px] font-medium text-emerald-700">
+                {isExit ? 'خروج' : 'ورود'}
+              </Text>
             </View>
           </View>
-
-          <View style={styles.statusBox}>
-            {isMapped ? (
-              <StatusBadge status="success" label="حواله دارد" size="sm" />
-            ) : (
-              <StatusBadge status="warning" label="بدون حواله" size="sm" />
-            )}
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>کالا / نهاده:</Text>
-          <Text style={styles.value}>{item.goods || 'کالای نامشخص'}</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>{isExit ? 'مشتری / مرغدار:' : 'فروشنده / مبدأ:'}</Text>
-          <Text style={styles.value}>{item.customerName || '—'}</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>راننده و خودرو:</Text>
-          <Text style={styles.value}>
-            {item.driverName || 'نامشخص'}{' '}
-            {item.plateNumber ? `(پلاک: ${toPersianDigits(item.plateNumber)})` : ''}
-          </Text>
-        </View>
-
-        {/* Weights */}
-        <View style={styles.weightRow}>
-          <View style={styles.weightCol}>
-            <Text style={styles.weightLabel}>وزن خالص:</Text>
-            <Text style={[styles.weightVal, isNetted ? styles.netDone : styles.netPending]}>
-              {isNetted ? formatWeight(netWeight) : 'در انتظار خروج'}
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <View className="flex-row justify-between items-baseline">
+            <Text className="font-vazirmatn text-sm text-mutedForeground">کالا / نهاده:</Text>
+            <Text className="font-vazirmatn text-base font-semibold text-foreground">
+              {item.goods || 'کالای نامشخص'}
             </Text>
           </View>
-
-          <View style={styles.weightCol}>
-            <Text style={styles.weightLabel}>پر / خالی:</Text>
-            <Text style={styles.weightSub}>
-              {toPersianDigits(Number(item.grossWeight || 0))} / {toPersianDigits(Number(item.tareWeight || 0))}
+          <View className="flex-row justify-between items-baseline p-2 bg-slate-50 rounded-lg border border-border/50">
+            <View className="items-end">
+              <Text className="font-vazirmatn text-xs text-mutedForeground">وزن ناخالص:</Text>
+              <Text className="font-vazirmatn text-base font-bold text-foreground">
+                {toPersianDigits(item.grossWeight || 0)}
+              </Text>
+            </View>
+            <View className="items-end">
+              <Text className="font-vazirmatn text-xs text-mutedForeground">وزن خالص:</Text>
+              <Text className={cn(
+                'font-vazirmatn text-base font-bold',
+                isNetted ? 'text-emerald-600' : 'text-orange-500'
+              )}>
+                {toPersianDigits(item.netWeight || 0)}
+              </Text>
+            </View>
+          </View>
+          <View className="mt-2 pt-2 border-t border-border/50">
+            <Text className="font-vazirmatn text-xs text-mutedForeground text-left">
+              زمان 중단: {item.weighTime || '-'}
             </Text>
           </View>
-        </View>
-
-        {item.weighTime ? (
-          <Text style={styles.timeText}>
-            زمان توزین: {toPersianDigits(String(item.weighTime).slice(0, 16).replace('T', ' '))}
-          </Text>
-        ) : null}
-      </View>
+        </CardContent>
+      </Card>
     );
   };
 
+  if (isLoading) {
+    return (
+      <ScreenContainer
+        title="ثبت وزن باسکول"
+        subtitle="مدیریت قبض‌های ورودی و خروجی راننده‌ها"
+        scrollable={false}
+      >
+        <View className="flex-row items-center justify-center h-64">
+          <SkeletonText lines={3} className="w-3/4" />
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   return (
     <ScreenContainer
-      title="پایش قبوض باسکول"
-      subtitle="رهگیری آنلاین توزین‌های ثبت‌شده در باسکول نگار کارخانه"
+      title="ثبت وزن باسکول"
+      subtitle="مدیریت قبض‌های ورودی و خروجی راننده‌ها"
       scrollable={false}
       onRefresh={refetch}
       refreshing={isRefetching}
     >
-      <View style={styles.filterSection}>
-        {/* Direction Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tabBtn, directionFilter === 'all' && styles.tabBtnActive]}
-            onPress={() => setDirectionFilter('all')}
-          >
-            <Text style={[styles.tabText, directionFilter === 'all' && styles.tabTextActive]}>
-              همه قبوض
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, directionFilter === 'exit' && styles.tabBtnActive]}
-            onPress={() => setDirectionFilter('exit')}
-          >
-            <Text style={[styles.tabText, directionFilter === 'exit' && styles.tabTextActive]}>
-              خروجی (فروش)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, directionFilter === 'entry' && styles.tabBtnActive]}
-            onPress={() => setDirectionFilter('entry')}
-          >
-            <Text style={[styles.tabText, directionFilter === 'entry' && styles.tabTextActive]}>
-              ورودی (خرید)
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Status Chips */}
-        <View style={styles.chipsRow}>
-          <TouchableOpacity
-            style={[styles.chip, statusFilter === 'all' && styles.chipActive]}
-            onPress={() => setStatusFilter('all')}
-          >
-            <Text style={[styles.chipText, statusFilter === 'all' && styles.chipTextActive]}>
-              همه وضعیت‌ها
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.chip, statusFilter === 'netted' && styles.chipActive]}
-            onPress={() => setStatusFilter('netted')}
-          >
-            <Text style={[styles.chipText, statusFilter === 'netted' && styles.chipTextActive]}>
-              توزین کامل (خالص)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.chip, statusFilter === 'pending' && styles.chipActive]}
-            onPress={() => setStatusFilter('pending')}
-          >
-            <Text style={[styles.chipText, statusFilter === 'pending' && styles.chipTextActive]}>
-              در انتظار توزین دوم
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <TextInput
-          style={styles.searchInput}
-          placeholder="جستجو در قبوض (شماره، پلاک، راننده، کالا)..."
-          placeholderTextColor="#94a3b8"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          textAlign="right"
-        />
+      <View className="flex-row gap-2 px-4 py-3 bg-surface border-b border-border">
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            directionFilter === 'all'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setDirectionFilter('all')}
+        >
+          <Text className="font-vazirmatn">همه</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            directionFilter === 'entry'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setDirectionFilter('entry')}
+        >
+          <Text className="font-vazirmatn">ورود</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            directionFilter === 'exit'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setDirectionFilter('exit')}
+        >
+          <Text className="font-vazirmatn">خروج</Text>
+        </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={palette.primary} />
-          <Text style={styles.loadingText}>در حال دریافت قبوض باسکول...</Text>
+      <View className="flex-row gap-2 px-4 py-3 bg-surface border-b border-border">
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            statusFilter === 'all'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setStatusFilter('all')}
+        >
+          <Text className="font-vazirmatn">همه</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            statusFilter === 'netted'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setStatusFilter('netted')}
+        >
+          <Text className="font-vazirmatn">تایید شده</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={cn(
+            'px-3 py-1 rounded-full text-xs font-medium border',
+            statusFilter === 'pending'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-surface border-border text-mutedForeground'
+          )}
+          onPress={() => setStatusFilter('pending')}
+        >
+          <Text className="font-vazirmatn">در انتظار</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View className="px-4 pb-2">
+        <View className="flex-row items-center gap-2 bg-surface border border-border rounded-lg p-2 mb-4">
+          <View className="flex-1">
+            <TextInput
+              placeholder="جستجو با شماره قبض، پلاک یا نام راننده..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              className="font-vazirmatn text-sm text-foreground"
+              style={{ color: '#0f172a' }}
+            />
+          </View>
+          <Button variant="outline" size="sm" className="w-20" onPress={() => refetch()}>
+            تازه‌سازی
+          </Button>
         </View>
-      ) : isError ? (
-        <ScreenState
-          isError
-          error={error}
-          onRetry={() => void refetch()}
-          messages={{ error: 'دریافت قبوض باسکول ناموفق بود.' }}
-        />
-      ) : (
-        <FlatList
-          data={filteredRecords}
-          keyExtractor={(item) => String(item.id || item.externalId)}
-          renderItem={renderTicketCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>قبضی با این مشخصات یافت نشد.</Text>
-            </View>
-          }
-        />
-      )}
+      </View>
+
+      <FlatList
+        data={filteredRecords}
+        renderItem={renderTicketCard}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View className="items-center p-8">
+            <Skeleton className="h-10 w-1/3 rounded-full mb-3 bg-emerald-100" />
+            <Text className="font-vazirmatn text-base font-semibold text-foreground mb-1">
+              قبضی یافت نشد
+            </Text>
+            <Text className="font-vazirmatn text-sm text-mutedForeground text-center max-w-xs">
+              قبضی با این فیلترها یافت نشد. لطفاً فیلترها یا عبارت جستجو را بررسی کنید.
+            </Text>
+          </View>
+        }
+      />
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  filterSection: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  tabRow: {
-    flexDirection: 'row-reverse',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 8,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  tabBtnActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabText: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 12,
-    color: '#64748b',
-  },
-  tabTextActive: {
-    color: '#0284c7',
-    fontFamily: 'Vazirmatn_700Bold',
-  },
-  chipsRow: {
-    flexDirection: 'row-reverse',
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  chipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
-  },
-  chipText: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 11,
-    color: '#64748b',
-  },
-  chipTextActive: {
-    color: '#0284c7',
-    fontFamily: 'Vazirmatn_700Bold',
-  },
-  searchInput: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 13,
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 10,
-  },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 30,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 8,
-  },
-  ticketBox: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ticketLabel: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 12,
-    color: '#64748b',
-  },
-  ticketNum: {
-    fontFamily: 'Vazirmatn_700Bold',
-    fontSize: 15,
-    color: '#0f172a',
-  },
-  directionTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  dirExit: {
-    backgroundColor: '#e0f2fe',
-  },
-  dirEntry: {
-    backgroundColor: '#ccfbf1',
-  },
-  dirText: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 10,
-    color: '#0369a1',
-  },
-  statusBox: {
-    flexDirection: 'row-reverse',
-  },
-  row: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  label: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 12,
-    color: '#64748b',
-  },
-  value: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 12,
-    color: '#1e293b',
-  },
-  weightRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    marginTop: 8,
-  },
-  weightCol: {
-    alignItems: 'flex-end',
-  },
-  weightLabel: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 2,
-  },
-  weightVal: {
-    fontFamily: 'Vazirmatn_700Bold',
-    fontSize: 14,
-  },
-  netDone: {
-    color: '#059669',
-  },
-  netPending: {
-    color: '#d97706',
-    fontSize: 12,
-  },
-  weightSub: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 12,
-    color: '#475569',
-  },
-  timeText: {
-    fontFamily: 'Vazirmatn_400Regular',
-    fontSize: 10,
-    color: '#94a3b8',
-    textAlign: 'left',
-    marginTop: 6,
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontFamily: 'Vazirmatn_500Medium',
-    fontSize: 14,
-    color: '#94a3b8',
-  },
-});
 
 export default OperatorWeighbridgeScreen;
