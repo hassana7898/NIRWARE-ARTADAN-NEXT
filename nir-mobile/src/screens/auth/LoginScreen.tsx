@@ -321,19 +321,17 @@ export function LoginScreen({ navigation }: any) {
               icon="warehouse"
               value={currentUrl}
               onChangeText={setCurrentUrl}
-              placeholder="https://app.artadan.ir"
+              placeholder="https://dev.artadan.ir"
               autoCapitalize="none"
               autoCorrect={false}
               containerStyle={styles.modalField}
             />
 
             <View style={styles.quickRow}>
-              <TouchableOpacity
-                style={styles.quickChip}
-                onPress={() => setCurrentUrl('https://app.artadan.ir')}
-              >
-                <Text style={styles.quickChipText}>سرور اصلی</Text>
-              </TouchableOpacity>
+              {/* Phase 3 isolation: this is the DEV-only client, so the operational host is not
+                  even present in the source. There is no button and no variant branch that could
+                  point the app at production; `utils/envGuard.ts` still refuses that host if it is
+                  ever typed into the field above. */}
               <TouchableOpacity
                 style={styles.quickChip}
                 onPress={() => setCurrentUrl('https://dev.artadan.ir')}

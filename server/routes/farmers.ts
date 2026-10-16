@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '../db';
 import { farmers } from '../db/schema';
-import { eq, isNull, asc, sql } from 'drizzle-orm';
+import { eq, isNull, isNotNull, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { requireRole } from '../middleware/auth';
 import { actorFromRequest, recordAudit } from '../services/auditService';
@@ -38,13 +38,26 @@ const phonesCompatible = (a: string | null, b: string | null): boolean => {
   return pa === '' || pb === '' || pa === pb;
 };
 
-// GET /api/farmers - Get all active farmers
-router.get('/', async (_req, res) => {
+// GET /api/farmers - Get farmers.
+//
+// `?status=active` (default) = the historical behaviour: soft-deleted rows are hidden.
+// `?status=inactive`        = ONLY the soft-deleted rows, so the office can bring a farmer back.
+// `?status=all`             = both. The response shape is unchanged (`{ data: [...] }`), so every
+// existing caller keeps working; only the WHERE clause follows the requested status.
+router.get('/', async (req, res) => {
   try {
+    const status = String((req.query?.status as string) || 'active').toLowerCase();
+    const where =
+      status === 'inactive'
+        ? isNotNull(farmers.deletedAt)
+        : status === 'all'
+        ? undefined
+        : isNull(farmers.deletedAt);
+
     const list = await db
       .select()
       .from(farmers)
-      .where(isNull(farmers.deletedAt))
+      .where(where)
       .orderBy(asc(farmers.name));
     res.json({ data: list });
   } catch (error: any) {
@@ -84,12 +97,17 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
         // Same person, second row: fold the new broods/phone in and report the surviving id.
         // `mergeBroods` applies the same deep de-duplication as the farmer merge, so a period that
         // already exists on the surviving row is combined instead of duplicated.
+        //
+        // The version is a NUMBER here, not `sql\`version + 1\``: the same object is returned to the
+        // client, and a Drizzle SQL expression cannot be JSON-serialised (it used to turn a
+        // duplicate-farmer POST into a 500 instead of the intended "merged" answer).
+        const nextVersion = Number(duplicate.version || 1) + 1;
         const updated = {
           broods: mergeBroods(duplicate.broods, farmerBroods),
           phone: duplicate.phone || farmerPhone,
           isHidden: false,
           updatedAt: new Date(),
-          version: sql`${farmers.version} + 1`,
+          version: nextVersion,
         };
         await tx.update(farmers).set(updated).where(eq(farmers.id, duplicate.id));
         await recordAudit(tx, actorFromRequest(req), {
@@ -203,6 +221,28 @@ router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
   } catch (error: any) {
     console.error('Delete farmer error:', error);
     res.status(400).json({ error: error.message || 'Failed to delete farmer.' });
+  }
+});
+
+// PUT /api/farmers/:id/restore - Bring a soft-deleted (inactive) farmer back into the active list.
+// The inverse of DELETE /api/farmers/:id, and the only way to reactivate a farmer from the client.
+router.put('/:id/restore', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const existing = await db.select({ id: farmers.id }).from(farmers).where(eq(farmers.id, id)).limit(1);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Farmer not found.' });
+    }
+
+    await db
+      .update(farmers)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where(eq(farmers.id, id));
+
+    res.json({ success: true, id });
+  } catch (error: any) {
+    console.error('Restore farmer error:', error);
+    res.status(400).json({ error: error.message || 'Failed to restore farmer.' });
   }
 });
 

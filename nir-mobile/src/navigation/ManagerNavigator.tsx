@@ -11,6 +11,8 @@ import { MoreMenuScreen } from '../screens/manager/MoreMenuScreen';
 import { FarmersDirectoryScreen } from '../screens/manager/FarmersDirectoryScreen';
 import { ApprovalsScreen } from '../screens/manager/ApprovalsScreen';
 import { UnmatchedDriversScreen } from '../screens/manager/UnmatchedDriversScreen';
+import { UsersManagementScreen } from '../screens/manager/UsersManagementScreen';
+import { DriversDirectoryScreen } from '../screens/manager/DriversDirectoryScreen';
 import { FarmerDashboardScreen } from '../screens/farmer/FarmerDashboardScreen';
 import { Icon } from '../components/common/Icon';
 import { palette, fontSize, spacing, spacingHalf, typography } from '../theme/tokens';
@@ -108,6 +110,10 @@ export function ManagerNavigator() {
       <Stack.Screen name="ManagerFarmerDetail" component={FarmerDashboardScreen} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} />
       <Stack.Screen name="UnmatchedDrivers" component={UnmatchedDriversScreen} />
+      {/* Phase 3 management screens. Reachable from the "بیش‌تر" (More) menu; each one is
+          role-gated in the UI and re-checked server-side by requireRole. */}
+      <Stack.Screen name="UsersManagement" component={UsersManagementScreen} />
+      <Stack.Screen name="DriversDirectory" component={DriversDirectoryScreen} />
     </Stack.Navigator>
   );
 }

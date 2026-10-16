@@ -94,9 +94,31 @@ export const Endpoints = {
   /** Shared web endpoints the mobile app reuses (already served by the web API). */
   web: {
     farmers: '/api/farmers',
+    farmerById: (id: string) => `/api/farmers/${encodeURIComponent(String(id))}`,
+    farmerRestore: (id: string) => `/api/farmers/${encodeURIComponent(String(id))}/restore`,
     warehouses: '/api/warehouses',
     invoices: '/api/invoices',
     settings: '/api/settings',
+    /**
+     * User administration (Phase 3). Route contract: `server/routes/users.ts`.
+     *   GET    /api/users            ADMIN | MANAGER
+     *   POST   /api/users            ADMIN
+     *   PATCH  /api/users/:id        ADMIN
+     *   PUT    /api/users/:id/password ADMIN
+     *   DELETE /api/users/:id        ADMIN
+     * The server is the authority (requireRole); the mobile UI only mirrors it.
+     */
+    users: '/api/users',
+    userById: (id: string) => `/api/users/${encodeURIComponent(String(id))}`,
+    userPassword: (id: string) => `/api/users/${encodeURIComponent(String(id))}/password`,
+    /**
+     * Driver directory (Phase 3). Route contract: `server/routes/drivers.ts`.
+     *   GET    /api/drivers          any authenticated role
+     *   POST   /api/drivers          ADMIN | MANAGER | OPERATOR (upsert by name = create + edit)
+     *   DELETE /api/drivers/:name    ADMIN | MANAGER (soft delete = deactivate)
+     */
+    drivers: '/api/drivers',
+    driverByName: (name: string) => `/api/drivers/${encodeURIComponent(String(name))}`,
   },
 } as const;
 

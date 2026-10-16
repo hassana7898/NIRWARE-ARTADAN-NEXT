@@ -14,9 +14,16 @@ import { Icon } from '../../components/common/Icon';
 import { palette } from '../../theme/tokens';
 import { useAuth } from '../../hooks/useAuth';
 import { getApiBaseUrl, setApiBaseUrl, describeApiTarget } from '../../api/client';
+import { canViewUsers } from '../../features/manager/userManagement';
 
 export function MoreMenuScreen({ navigation }: any) {
   const { user, logout } = useAuth();
+  const role = String(user?.role || '').toUpperCase();
+  // Which directory entries this session may open, mirroring the route guards:
+  //   users   -> GET /api/users   requireRole(ADMIN, MANAGER)
+  //   drivers -> GET /api/drivers any authenticated role
+  const showUsersEntry = canViewUsers(role);
+  const showDriversEntry = ['ADMIN', 'MANAGER', 'OPERATOR', 'ACCOUNTING'].includes(role);
   const [showServerModal, setShowServerModal] = useState(false);
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
 
@@ -117,6 +124,40 @@ export function MoreMenuScreen({ navigation }: any) {
             <Text style={styles.chevron}>‹</Text>
           </TouchableOpacity>
 
+          {/* Users administration (Phase 3). ADMIN|MANAGER only, matching GET /api/users. */}
+          {showUsersEntry ? (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('UsersManagement')}
+              activeOpacity={0.7}
+            >
+              <Icon name="userRound" size={18} color={palette.primary} decorative />
+              <View style={styles.menuTextWrap}>
+                <Text style={styles.menuTitle}>مدیریت کاربران و نقش‌ها</Text>
+                <Text style={styles.menuDesc}>ایجاد کاربر، تغییر نقش، بازنشانی رمز و حذف حساب</Text>
+              </View>
+              <Text style={styles.chevron}>‹</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Drivers directory (Phase 3). Listing is open to any authenticated role. */}
+          {showDriversEntry ? (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('DriversDirectory')}
+              activeOpacity={0.7}
+            >
+              <Icon name="truck" size={18} color={palette.primary} decorative />
+              <View style={styles.menuTextWrap}>
+                <Text style={styles.menuTitle}>مدیریت رانندگان</Text>
+                <Text style={styles.menuDesc}>
+                  فهرست رانندگان، ویرایش تماس و شبا، غیرفعال‌سازی بدون حذف سوابق
+                </Text>
+              </View>
+              <Text style={styles.chevron}>‹</Text>
+            </TouchableOpacity>
+          ) : null}
+
           {/* Server / VPS Settings */}
           <TouchableOpacity
             style={styles.menuItem}
@@ -167,17 +208,13 @@ export function MoreMenuScreen({ navigation }: any) {
             />
 
             <View style={styles.quickBox}>
+              {/* DEV-only build: only the dev host is offered. The operational host is not present
+                  in the source at all, so no button, fallback or branch can redirect the app. */}
               <TouchableOpacity
                 style={styles.quickBtn}
                 onPress={() => setServerUrl('https://dev.artadan.ir')}
               >
                 <Text style={styles.quickText}>سرور توسعه (dev.artadan.ir)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickBtn}
-                onPress={() => setServerUrl('https://app.artadan.ir')}
-              >
-                <Text style={styles.quickText}>سرور اصلی (app.artadan.ir)</Text>
               </TouchableOpacity>
             </View>
 

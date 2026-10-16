@@ -1,19 +1,33 @@
 import express from 'express';
 import { db } from '../db';
 import { drivers } from '../db/schema';
-import { eq, isNull, asc } from 'drizzle-orm';
+import { eq, isNull, isNotNull, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { requireRole } from '../middleware/auth';
 
 const router = express.Router();
 
-// GET /api/drivers - Get all active drivers
-router.get('/', async (_req, res) => {
+// GET /api/drivers - Get drivers.
+//
+// `?status=active` (default) keeps the historical behaviour (soft-deleted rows hidden).
+// `?status=inactive` returns only the soft-deleted ("inactive") rows so the office can review or
+// reactivate them; `?status=all` returns both. The response shape `{ data: [...] }` is unchanged.
+// A driver is NEVER hard-deleted: DELETE only stamps `deleted_at`, so every invoice that references
+// the driver (`invoices.driver_id` / `driver_name`) keeps its history intact.
+router.get('/', async (req, res) => {
   try {
+    const status = String((req.query?.status as string) || 'active').toLowerCase();
+    const where =
+      status === 'inactive'
+        ? isNotNull(drivers.deletedAt)
+        : status === 'all'
+        ? undefined
+        : isNull(drivers.deletedAt);
+
     const list = await db
       .select()
       .from(drivers)
-      .where(isNull(drivers.deletedAt))
+      .where(where)
       .orderBy(asc(drivers.name));
     res.json({ data: list });
   } catch (error: any) {

@@ -30,7 +30,14 @@ import {
 } from '../utils/envGuard';
 
 // Default API URL baked into the bundle by app.config.js / eas.json (APP_VARIANT).
-export const DEFAULT_API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://app.artadan.ir').replace(/\/+$/, '');
+//
+// Phase 3 hardening: the built-in fallback is the DEV host. If a build is ever produced without
+// EXPO_PUBLIC_API_URL, it must fail SAFE (land on the dev server) instead of silently pointing an
+// unreviewed build at the operational database. The operational bundle receives its own
+// EXPO_PUBLIC_API_URL from the build workflow / EAS profile, so its DEFAULT_API_URL (and therefore
+// APP_VARIANT) is unchanged. The operational host string lives only in utils/envGuard.ts, whose job
+// is to REFUSE it for a dev build.
+export const DEFAULT_API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://dev.artadan.ir').replace(/\/+$/, '');
 
 // Which app this bundle is: a dev build (ir.artadan.nir.dev) must never reach production.
 export const APP_VARIANT: AppVariant = resolveAppVariant(DEFAULT_API_URL);

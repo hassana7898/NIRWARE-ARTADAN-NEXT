@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,28 @@ import {
   ActivityIndicator,
   RefreshControl,
   Linking,
+  Alert,
+  Modal,
+  ScrollView,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
 import { ScreenState } from '../../components/common/ScreenState';
 import { Icon } from '../../components/common/Icon';
 import { palette } from '../../theme/tokens';
 import { apiClient } from '../../api/client';
 import { Endpoints } from '../../api/endpoints';
+import { extractApiErrorMessage } from '../../api/errors';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  buildFarmerPayload,
+  canCreateFarmer,
+  canDeactivateFarmer,
+  canEditFarmer,
+  canRestoreFarmer,
+  farmersQueryFor,
+  validateFarmerInput,
+} from '../../features/manager/farmerDirectory';
 import {
   formatNumberWithCommas,
   toPersianDigits,
@@ -25,16 +39,129 @@ import {
 import { dateDayNumber, jalaliText } from '../../utils/jalali';
 
 export function FarmersDirectoryScreen({ navigation }: any) {
+  const { role } = useAuth();
+  const queryClient = useQueryClient();
+  const canCreate = canCreateFarmer(role);
+  const canEdit = canEditFarmer(role);
+  const canDeactivate = canDeactivateFarmer(role);
+  const canRestore = canRestoreFarmer(role);
+
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'active_brood' | 'has_brood'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive'>('active');
+  const [form, setForm] = useState<{ id: string | null; name: string; phone: string } | null>(null);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
-    queryKey: ['manager', 'farmers-directory'],
+    queryKey: ['manager', 'farmers-directory', statusFilter],
     queryFn: async () => {
-      const res = await apiClient.get(Endpoints.web.farmers);
+      const res = await apiClient.get(Endpoints.web.farmers, { params: farmersQueryFor(statusFilter) });
       return (res.data?.data || []) as any[];
     },
   });
+
+  const refreshFarmers = () => queryClient.invalidateQueries({ queryKey: ['manager', 'farmers-directory'] });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string | null; payload: Record<string, unknown> }) => {
+      const res = id
+        ? await apiClient.put(Endpoints.web.farmerById(id), payload)
+        : await apiClient.post(Endpoints.web.farmers, payload);
+      return res.data;
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiClient.delete(Endpoints.web.farmerById(id));
+      return res.data;
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiClient.put(Endpoints.web.farmerRestore(id), {});
+      return res.data;
+    },
+  });
+
+  const busy = saveMutation.isPending || deactivateMutation.isPending || restoreMutation.isPending;
+
+  const openCreate = () => setForm({ id: null, name: '', phone: '' });
+  const openEdit = (farmer: any) =>
+    setForm({ id: farmer.id, name: String(farmer.name || ''), phone: String(farmer.phone || '') });
+
+  const submitForm = () => {
+    if (!form || busy) return;
+    const validation = validateFarmerInput({ name: form.name, phone: form.phone });
+    if (!validation.valid) {
+      Alert.alert('اطلاعات ناقص', Object.values(validation.errors)[0] || 'لطفاً فیلدها را بررسی کنید.');
+      return;
+    }
+    saveMutation.mutate(
+      { id: form.id, payload: buildFarmerPayload({ id: form.id, name: form.name, phone: form.phone }) },
+      {
+        onSuccess: async (result: any) => {
+          await refreshFarmers();
+          const reused = !!result?.data?.reused;
+          setForm(null);
+          Alert.alert(
+            'موفقیت',
+            reused
+              ? 'مرغدار تکراری بود؛ اطلاعات در پروندهٔ موجود ادغام شد.'
+              : form.id
+              ? 'اطلاعات مرغدار ذخیره شد.'
+              : 'مرغدار جدید ثبت شد.'
+          );
+        },
+        onError: (err) => Alert.alert('خطا', extractApiErrorMessage(err, 'ذخیره اطلاعات مرغدار ناموفق بود.')),
+      }
+    );
+  };
+
+  const confirmDeactivate = (farmer: any) => {
+    if (busy) return;
+    Alert.alert(
+      'غیرفعال‌سازی مرغدار',
+      `مرغدار «${farmer.name}» از فهرست فعال خارج می‌شود. سوابق دوره‌ها و حواله‌ها حفظ می‌شوند و بعداً قابل بازیابی است. ادامه می‌دهید؟`,
+      [
+        { text: 'انصراف', style: 'cancel' },
+        {
+          text: 'غیرفعال کن',
+          style: 'destructive',
+          onPress: () =>
+            deactivateMutation.mutate(farmer.id, {
+              onSuccess: async () => {
+                await refreshFarmers();
+                setForm(null);
+                Alert.alert('موفقیت', 'مرغدار غیرفعال شد.');
+              },
+              onError: (err) =>
+                Alert.alert('خطا', extractApiErrorMessage(err, 'غیرفعال‌سازی مرغدار ناموفق بود.')),
+            }),
+        },
+      ]
+    );
+  };
+
+  const confirmRestore = (farmer: any) => {
+    if (busy) return;
+    Alert.alert('فعال‌سازی مجدد', `مرغدار «${farmer.name}» دوباره فعال شود؟`, [
+      { text: 'انصراف', style: 'cancel' },
+      {
+        text: 'فعال کن',
+        onPress: () =>
+          restoreMutation.mutate(farmer.id, {
+            onSuccess: async () => {
+              await refreshFarmers();
+              setForm(null);
+              Alert.alert('موفقیت', 'مرغدار فعال شد.');
+            },
+            onError: (err) =>
+              Alert.alert('خطا', extractApiErrorMessage(err, 'فعال‌سازی مرغدار ناموفق بود.')),
+          }),
+      },
+    ]);
+  };
 
   const todayJalali = jalaliText(new Date());
   const todayDayNum = dateDayNumber(todayJalali) || 0;
@@ -217,6 +344,44 @@ export function FarmersDirectoryScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Phase 3 management actions. Role-gated exactly like the routes: edit = ADMIN|MANAGER,
+            deactivate = ADMIN, restore = ADMIN|MANAGER. The server re-checks every call. */}
+        {canEdit || (statusFilter === 'inactive' ? canRestore : canDeactivate) ? (
+          <View style={styles.cardActionsRow}>
+            {canEdit ? (
+              <TouchableOpacity
+                style={styles.cardActionBtn}
+                onPress={() => openEdit(item)}
+                disabled={busy}
+              >
+                <Icon name="pencil" size={13} color={palette.primary} decorative />
+                <Text style={styles.cardActionBtnText}>ویرایش</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {statusFilter === 'inactive'
+              ? canRestore && (
+                  <TouchableOpacity
+                    style={[styles.cardActionBtn, styles.cardActionBtnSuccess]}
+                    onPress={() => confirmRestore(item)}
+                    disabled={busy}
+                  >
+                    <Icon name="check" size={13} color="#047857" decorative />
+                    <Text style={styles.cardActionBtnSuccessText}>فعال‌سازی مجدد</Text>
+                  </TouchableOpacity>
+                )
+              : canDeactivate && (
+                  <TouchableOpacity
+                    style={[styles.cardActionBtn, styles.cardActionBtnDanger]}
+                    onPress={() => confirmDeactivate(item)}
+                    disabled={busy}
+                  >
+                    <Text style={styles.cardActionBtnDangerText}>غیرفعال‌سازی</Text>
+                  </TouchableOpacity>
+                )}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -249,6 +414,36 @@ export function FarmersDirectoryScreen({ navigation }: any) {
           </Text>
           <Text style={styles.summaryLbl}>قطعه جوجه فعال</Text>
         </View>
+      </View>
+
+      {/* Phase 3: active/inactive switch + create. Both are role-gated client-side and re-checked
+          by the server (`requireRole`) on every call. */}
+      <View style={styles.manageRow}>
+        <View style={styles.statusToggle}>
+          <TouchableOpacity
+            style={[styles.statusOption, statusFilter === 'active' && styles.statusOptionActive]}
+            onPress={() => setStatusFilter('active')}
+          >
+            <Text style={[styles.statusOptionText, statusFilter === 'active' && styles.statusOptionTextActive]}>
+              فعال
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.statusOption, statusFilter === 'inactive' && styles.statusOptionActive]}
+            onPress={() => setStatusFilter('inactive')}
+          >
+            <Text style={[styles.statusOptionText, statusFilter === 'inactive' && styles.statusOptionTextActive]}>
+              غیرفعال
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {canCreate ? (
+          <TouchableOpacity style={styles.addFarmerBtn} onPress={openCreate} disabled={busy}>
+            <Icon name="userRound" size={15} color={palette.inkInverse} decorative />
+            <Text style={styles.addFarmerBtnText}>مرغدار جدید</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Search & Filter */}
@@ -314,6 +509,45 @@ export function FarmersDirectoryScreen({ navigation }: any) {
           }
         />
       )}
+
+      <Modal visible={!!form} transparent animationType="fade" onRequestClose={() => setForm(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{form?.id ? 'ویرایش مرغدار' : 'ثبت مرغدار جدید'}</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalFieldLabel}>نام مرغدار:</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={form?.name ?? ''}
+                onChangeText={(text) => setForm((prev) => (prev ? { ...prev, name: text } : prev))}
+                placeholder="نام و نام خانوادگی مرغدار"
+              />
+
+              <Text style={styles.modalFieldLabel}>شماره تماس (اختیاری):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={form?.phone ?? ''}
+                onChangeText={(text) => setForm((prev) => (prev ? { ...prev, phone: text } : prev))}
+                keyboardType="phone-pad"
+                placeholder="09123456789"
+              />
+            </ScrollView>
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setForm(null)} disabled={busy}>
+                <Text style={styles.modalCancelText}>انصراف</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, busy && styles.modalBtnDisabled]}
+                onPress={submitForm}
+                disabled={busy}
+              >
+                <Text style={styles.modalSaveText}>{form?.id ? 'ذخیره تغییرات' : 'ثبت مرغدار'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -567,6 +801,162 @@ const styles = StyleSheet.create({
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 13,
     color: '#94a3b8',
+  },
+  /* ---- Phase 3: active/inactive switch + create/edit modal ---- */
+  manageRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    gap: 8,
+  },
+  statusToggle: {
+    flexDirection: 'row-reverse',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  statusOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusOptionActive: {
+    backgroundColor: '#0284c7',
+  },
+  statusOptionText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 12,
+    color: '#334155',
+  },
+  statusOptionTextActive: {
+    color: '#ffffff',
+  },
+  addFarmerBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  addFarmerBtnText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 12,
+    color: '#ffffff',
+  },
+  cardActionsRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  cardActionBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#e0f2fe',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  cardActionBtnText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 12,
+    color: '#0369a1',
+  },
+  cardActionBtnDanger: {
+    backgroundColor: '#fef2f2',
+  },
+  cardActionBtnDangerText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 12,
+    color: '#b91c1c',
+  },
+  cardActionBtnSuccess: {
+    backgroundColor: '#ecfdf5',
+  },
+  cardActionBtnSuccessText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 12,
+    color: '#047857',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    maxHeight: '88%',
+  },
+  modalTitle: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 16,
+    color: '#0f172a',
+    textAlign: 'right',
+    marginBottom: 10,
+  },
+  modalFieldLabel: {
+    fontFamily: 'Vazirmatn_500Medium',
+    fontSize: 12,
+    color: '#334155',
+    textAlign: 'right',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  modalInput: {
+    fontFamily: 'Vazirmatn_400Regular',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#0f172a',
+    textAlign: 'right',
+  },
+  modalBtnRow: {
+    flexDirection: 'row-reverse',
+    gap: 10,
+    marginTop: 16,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontFamily: 'Vazirmatn_500Medium',
+    fontSize: 13,
+    color: '#64748b',
+  },
+  modalSaveBtn: {
+    flex: 2,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontFamily: 'Vazirmatn_700Bold',
+    fontSize: 13,
+    color: '#ffffff',
+  },
+  modalBtnDisabled: {
+    opacity: 0.6,
   },
 });
 
