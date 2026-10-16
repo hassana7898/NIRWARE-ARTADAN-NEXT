@@ -450,9 +450,9 @@ const styles = StyleSheet.create({
     color: '#7e22ce',
   },
   fcrPreviewCard: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#ecfdf5',
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: '#a7f3d0',
     borderRadius: 12,
     padding: 12,
     marginTop: 14,
@@ -461,12 +461,12 @@ const styles = StyleSheet.create({
   fcrPreviewTitle: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0369a1',
+    color: '#047857',
   },
   fcrPreviewValue: {
     fontFamily: 'Vazirmatn_700Bold',
     fontSize: 24,
-    color: '#0284c7',
+    color: '#059669',
     marginVertical: 2,
   },
   fcrPreviewSub: {
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

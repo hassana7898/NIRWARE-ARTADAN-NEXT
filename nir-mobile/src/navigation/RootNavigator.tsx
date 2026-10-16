@@ -56,7 +56,7 @@ export function RootNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0284c7" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text style={styles.loadingText}>در حال بارگذاری سامانه NIR...</Text>
       </View>
     );

@@ -409,7 +409,7 @@ export function FarmersDirectoryScreen({ navigation }: any) {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal, { color: '#0284c7' }]}>
+          <Text style={[styles.summaryVal, { color: '#059669' }]}>
             {toPersianDigits(formatNumberWithCommas(totalActiveChicksCount))}
           </Text>
           <Text style={styles.summaryLbl}>قطعه جوجه فعال</Text>
@@ -612,8 +612,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   filterChipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#059669',
   },
   filterChipText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     fontFamily: 'Vazirmatn_700Bold',
-    color: '#0284c7',
+    color: '#059669',
   },
   listContent: {
     paddingBottom: 24,
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   openDashboardBtn: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -728,8 +728,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   broodItemActive: {
-    borderColor: '#7dd3fc',
-    backgroundColor: '#f0f9ff',
+    borderColor: '#6ee7b7',
+    backgroundColor: '#ecfdf5',
   },
   broodHeader: {
     flexDirection: 'row',
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   statusOptionActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   statusOptionText: {
     fontFamily: 'Vazirmatn_700Bold',
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -861,7 +861,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
   cardActionBtnText: {
     fontFamily: 'Vazirmatn_700Bold',
     fontSize: 12,
-    color: '#0369a1',
+    color: '#047857',
   },
   cardActionBtnDanger: {
     backgroundColor: '#fef2f2',
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
   },
   modalSaveBtn: {
     flex: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: 'center',

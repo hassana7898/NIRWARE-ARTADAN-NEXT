@@ -279,7 +279,7 @@ export function UsersManagementScreen({ navigation }: any) {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal, { color: '#38bdf8' }]}>{toPersianDigits(adminCount(users))}</Text>
+          <Text style={[styles.summaryVal, { color: '#34d399' }]}>{toPersianDigits(adminCount(users))}</Text>
           <Text style={styles.summaryLbl}>مدیر ارشد</Text>
         </View>
         <View style={styles.summaryDivider} />
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -517,9 +517,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  chipActive: { backgroundColor: '#e0f2fe', borderColor: '#0284c7' },
+  chipActive: { backgroundColor: '#ecfdf5', borderColor: '#059669' },
   chipText: { fontFamily: 'Vazirmatn_500Medium', fontSize: 11, color: '#475569' },
-  chipTextActive: { fontFamily: 'Vazirmatn_700Bold', color: '#0284c7' },
+  chipTextActive: { fontFamily: 'Vazirmatn_700Bold', color: '#059669' },
   listContent: { paddingBottom: 24, gap: 10 },
   card: {
     backgroundColor: '#ffffff',
@@ -540,8 +540,8 @@ const styles = StyleSheet.create({
   cardTitleBox: { flex: 1, alignItems: 'flex-end' },
   userName: { fontFamily: 'Vazirmatn_700Bold', fontSize: 15, color: '#0f172a' },
   userMeta: { fontFamily: 'Vazirmatn_400Regular', fontSize: 11, color: '#64748b', marginTop: 2 },
-  roleBadge: { backgroundColor: '#e0f2fe', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  roleBadgeText: { fontFamily: 'Vazirmatn_700Bold', fontSize: 11, color: '#0369a1' },
+  roleBadge: { backgroundColor: '#ecfdf5', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  roleBadgeText: { fontFamily: 'Vazirmatn_700Bold', fontSize: 11, color: '#047857' },
   infoRow: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -588,9 +588,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  roleOptionActive: { backgroundColor: '#e0f2fe', borderColor: '#0284c7' },
+  roleOptionActive: { backgroundColor: '#ecfdf5', borderColor: '#059669' },
   roleOptionText: { fontFamily: 'Vazirmatn_500Medium', fontSize: 11, color: '#475569' },
-  roleOptionTextActive: { fontFamily: 'Vazirmatn_700Bold', color: '#0284c7' },
+  roleOptionTextActive: { fontFamily: 'Vazirmatn_700Bold', color: '#059669' },
   dangerZone: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#fee2e2', paddingTop: 6 },
   inlineRow: { flexDirection: 'row-reverse', gap: 8, alignItems: 'center' },
   inlineInput: { flex: 1 },
@@ -598,12 +598,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  inlineBtnText: { fontFamily: 'Vazirmatn_700Bold', fontSize: 12, color: '#0369a1' },
+  inlineBtnText: { fontFamily: 'Vazirmatn_700Bold', fontSize: 12, color: '#047857' },
   deleteBtn: {
     marginTop: 12,
     backgroundColor: '#fef2f2',
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
   modalBtnRow: { flexDirection: 'row-reverse', gap: 10, marginTop: 14 },
   cancelBtn: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   cancelText: { fontFamily: 'Vazirmatn_500Medium', fontSize: 13, color: '#64748b' },
-  saveBtn: { flex: 2, backgroundColor: '#0284c7', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  saveBtn: { flex: 2, backgroundColor: '#059669', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   saveText: { fontFamily: 'Vazirmatn_700Bold', fontSize: 13, color: '#ffffff' },
   btnDisabled: { opacity: 0.6 },
 });

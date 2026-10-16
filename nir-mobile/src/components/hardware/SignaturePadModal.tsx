@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   saveText: {
     fontFamily: 'Vazirmatn_500Medium',

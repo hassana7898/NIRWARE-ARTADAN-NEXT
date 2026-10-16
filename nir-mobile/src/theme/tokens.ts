@@ -29,10 +29,10 @@ export const palette = {
   borderStrong: '#CBD5E1',
 
   // The single action colour
-  primary: '#0369A1',
-  primaryPressed: '#075985',
-  primaryMuted: '#E0F2FE', // tinted background for a selected/active state
-  primaryBorder: '#7DD3FC',
+  primary: '#047857',
+  primaryPressed: '#065f46',
+  primaryMuted: '#ecfdf5', // tinted background for a selected/active state
+  primaryBorder: '#6ee7b7',
 
   // Semantic status — never an action colour
   success: '#047857',
@@ -47,9 +47,9 @@ export const palette = {
   criticalMuted: '#FEF2F2',
   criticalBorder: '#FCA5A5',
 
-  info: '#0369A1',
-  infoMuted: '#F0F9FF',
-  infoBorder: '#BAE6FD',
+  info: '#047857',
+  infoMuted: '#ecfdf5',
+  infoBorder: '#a7f3d0',
 } as const;
 
 /**
@@ -162,7 +162,7 @@ export const brand = {
   /** Secondary/meta text on the band. */
   onBandMuted: '#8FA6C4',
   /** Accent used for live/active indicators inside the band. */
-  bandAccent: '#38BDF8',
+  bandAccent: '#34d399',
   /** Positive state inside the band. */
   bandSuccess: '#34D399',
   /** Warning state inside the band. */
@@ -179,7 +179,7 @@ export const brand = {
  * `palette.critical` and be unmistakable.
  */
 export const chart = {
-  series: ['#0EA5E9', '#14B8A6', '#6366F1', '#F59E0B', '#EC4899', '#64748B'] as const,
+  series: ['#10b981', '#14B8A6', '#6366F1', '#F59E0B', '#EC4899', '#64748B'] as const,
   /** Track behind every bar / ring. */
   track: '#E7EDF5',
   /** Grid lines and axis hairlines. */

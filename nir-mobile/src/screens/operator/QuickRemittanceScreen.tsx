@@ -193,7 +193,7 @@ export function QuickRemittanceScreen() {
           {type === 'exit' ? 'نوع محصول دان خروجی:' : 'ماده اولیه ورودی:'}
         </Text>
         {loadingProducts ? (
-          <ActivityIndicator size="small" color="#0284c7" />
+          <ActivityIndicator size="small" color="#059669" />
         ) : availableProducts.length === 0 ? (
           <Text style={styles.emptyProductText}>هیچ کالای فعالی یافت نشد.</Text>
         ) : (
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   toggleBtnActiveExit: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   toggleBtnActiveEntry: {
     backgroundColor: '#0d9488',
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   dateHint: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
   },
   productScroll: {
     marginBottom: 14,
@@ -404,8 +404,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   productChipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#059669',
   },
   productChipText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   productChipTextActive: {
-    color: '#0284c7',
+    color: '#059669',
     fontFamily: 'Vazirmatn_700Bold',
   },
   emptyProductText: {
@@ -454,12 +454,12 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   submitBtn: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#0284c7',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,

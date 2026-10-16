@@ -43,6 +43,16 @@ const badgeVariants = cva(
   }
 );
 
+/** Badge visual variant — used by StatusBadge and any caller that maps domain states to pills. */
+export type BadgeVariant =
+  | 'default'
+  | 'primary'
+  | 'secondary'
+  | 'success'
+  | 'destructive'
+  | 'warning'
+  | 'outline';
+
 export interface BadgeProps
   extends React.ComponentPropsWithRef<typeof Text>,
     VariantProps<typeof badgeVariants> {

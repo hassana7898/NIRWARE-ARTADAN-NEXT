@@ -158,7 +158,7 @@ export function DeliveryProofScreen({ route, navigation }: any) {
         <View style={styles.gpsRow}>
           <Text style={styles.gpsLabel}>موقعیت جغرافیایی تحویل:</Text>
           {locating ? (
-            <ActivityIndicator size="small" color="#0284c7" />
+            <ActivityIndicator size="small" color="#059669" />
           ) : location ? (
             <Text style={styles.gpsValue}>
               {toPersianDigits(`${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`)}
@@ -290,16 +290,16 @@ const styles = StyleSheet.create({
   openSignBtn: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#0284c7',
+    borderColor: '#059669',
     borderRadius: 10,
     paddingVertical: 18,
     alignItems: 'center',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#ecfdf5',
   },
   openSignText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 13,
-    color: '#0284c7',
+    color: '#059669',
   },
   signaturePreviewBox: {
     borderWidth: 1,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   reSignText: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
   },
   submitButton: {
     backgroundColor: '#16a34a',

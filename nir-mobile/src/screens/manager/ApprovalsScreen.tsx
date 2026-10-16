@@ -208,7 +208,7 @@ export function ApprovalsScreen({ navigation }: any) {
 
       {isCurrentLoading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0284c7" />
+          <ActivityIndicator size="large" color="#059669" />
           <Text style={styles.loadingText}>در حال بارگذاری کارتابل...</Text>
         </View>
       ) : activeTab === 'orders' ? (
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   tabText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   },
   weightVal: {
     fontFamily: 'Vazirmatn_700Bold',
-    color: '#0284c7',
+    color: '#059669',
   },
   notesBox: {
     backgroundColor: '#f8fafc',

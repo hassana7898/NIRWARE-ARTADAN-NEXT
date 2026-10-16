@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   previewBox: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#ecfdf5',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   previewText: {
     fontFamily: 'Vazirmatn_700Bold',
     fontSize: 15,
-    color: '#0284c7',
+    color: '#059669',
   },
   sectionLabel: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   monthPillActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   monthText: {
     fontFamily: 'Vazirmatn_400Regular',
@@ -238,8 +238,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   dayCellActive: {
-    backgroundColor: '#0284c7',
-    borderColor: '#0284c7',
+    backgroundColor: '#059669',
+    borderColor: '#059669',
   },
   dayText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   todayText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
   },
   mainActions: {
     flexDirection: 'row-reverse',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   confirmText: {
     fontFamily: 'Vazirmatn_500Medium',

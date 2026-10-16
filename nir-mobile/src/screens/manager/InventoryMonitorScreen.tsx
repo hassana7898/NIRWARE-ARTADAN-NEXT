@@ -151,7 +151,7 @@ export function InventoryMonitorScreen() {
           <RefreshControl
             refreshing={inventoryQuery.isFetching && !inventoryQuery.isLoading}
             onRefresh={() => inventoryQuery.refetch()}
-            colors={['#0284c7']}
+            colors={['#059669']}
           />
         }
         ListHeaderComponent={
@@ -189,7 +189,7 @@ export function InventoryMonitorScreen() {
         ListEmptyComponent={
           inventoryQuery.isLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0284c7" />
+              <ActivityIndicator size="large" color="#059669" />
               <Text style={styles.loadingText}>در حال دریافت موجودی از سرور...</Text>
             </View>
           ) : errorText ? null : (
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   summaryVal: {
     fontFamily: 'Vazirmatn_700Bold',
     fontSize: 14,
-    color: '#38bdf8',
+    color: '#34d399',
   },
   summaryWarn: {
     color: '#fbbf24',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   filterBtnActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   filterText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 5,
   },
   progressBarWarn: {
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   stockVal: {
-    color: '#0284c7',
+    color: '#059669',
   },
   itemHint: {
     fontFamily: 'Vazirmatn_400Regular',

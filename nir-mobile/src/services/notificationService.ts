@@ -56,7 +56,7 @@ export async function registerForPushNotificationsAsync(): Promise<PushRegistrat
         description: 'اعلان‌های حواله، باسکول و ثبت بار',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#0284c7',
+        lightColor: '#059669',
         enableLights: true,
         enableVibrate: true,
       });

@@ -333,7 +333,7 @@ export function RemittancesScreen() {
               listQuery.refetch();
               countsQuery.refetch();
             }}
-            colors={['#0284c7']}
+            colors={['#059669']}
           />
         }
         ListHeaderComponent={
@@ -422,7 +422,7 @@ export function RemittancesScreen() {
         ListEmptyComponent={
           listQuery.isLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0284c7" />
+              <ActivityIndicator size="large" color="#059669" />
               <Text style={styles.loadingText}>در حال دریافت حواله‌ها از سرور...</Text>
             </View>
           ) : errorText ? null : (
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   tabText: {
     fontFamily: 'Vazirmatn_700Bold',
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   },
   presetBtn: {
     flex: 1,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderRadius: 8,
     paddingVertical: 6,
     alignItems: 'center',
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   presetText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 11,
-    color: '#0369a1',
+    color: '#047857',
   },
   rangeHint: {
     fontFamily: 'Vazirmatn_400Regular',
@@ -623,8 +623,8 @@ const styles = StyleSheet.create({
     maxWidth: 170,
   },
   farmerChipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0ea5e9',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#10b981',
   },
   farmerChipText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   farmerChipTextActive: {
-    color: '#0369a1',
+    color: '#047857',
     fontFamily: 'Vazirmatn_700Bold',
   },
   farmerChipsLoading: {
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   weightScale: {
-    color: '#0284c7',
+    color: '#059669',
   },
   pager: {
     flexDirection: 'row-reverse',
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   pagerBtn: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   pagerBtnText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0369a1',
+    color: '#047857',
   },
   pagerLabel: {
     fontFamily: 'Vazirmatn_500Medium',

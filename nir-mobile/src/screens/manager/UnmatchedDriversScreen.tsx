@@ -247,7 +247,7 @@ export function UnmatchedDriversScreen({ navigation }: any) {
           <RefreshControl
             refreshing={reportQuery.isFetching && !reportQuery.isLoading}
             onRefresh={() => reportQuery.refetch()}
-            colors={['#0284c7']}
+            colors={['#059669']}
           />
         }
         ListHeaderComponent={
@@ -277,7 +277,7 @@ export function UnmatchedDriversScreen({ navigation }: any) {
         ListEmptyComponent={
           reportQuery.isLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0284c7" />
+              <ActivityIndicator size="large" color="#059669" />
               <Text style={styles.loadingText}>در حال بررسی حواله‌ها روی سرور...</Text>
             </View>
           ) : errorText ? null : (
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
   },
   tabText: {
     fontFamily: 'Vazirmatn_700Bold',
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   summaryVal: {
     fontFamily: 'Vazirmatn_700Bold',
     fontSize: 16,
-    color: '#38bdf8',
+    color: '#34d399',
   },
   summaryDivider: {
     width: 1,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   pagerBtn: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   pagerBtnText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0369a1',
+    color: '#047857',
   },
   pagerLabel: {
     fontFamily: 'Vazirmatn_500Medium',

@@ -125,7 +125,7 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0284c7" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text style={styles.loadingText}>در حال راه‌اندازی سامانه NIR...</Text>
       </View>
     );
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   reloadBtn: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

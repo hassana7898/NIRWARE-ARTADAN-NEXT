@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   sheetAction: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -785,8 +785,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   candidateActive: {
-    borderColor: '#0284c7',
-    backgroundColor: '#f0f9ff',
+    borderColor: '#059669',
+    backgroundColor: '#ecfdf5',
   },
   candidateTitle: {
     fontFamily: 'Vazirmatn_700Bold',
@@ -814,9 +814,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     borderWidth: 1,
-    borderColor: '#0ea5e9',
+    borderColor: '#10b981',
   },
   segmentText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     fontFamily: 'Vazirmatn_700Bold',
-    color: '#0369a1',
+    color: '#047857',
   },
   fieldLabel: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -860,8 +860,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   filterPillActive: {
-    backgroundColor: '#0284c7',
-    borderColor: '#0284c7',
+    backgroundColor: '#059669',
+    borderColor: '#059669',
   },
   filterText: {
     fontFamily: 'Vazirmatn_500Medium',

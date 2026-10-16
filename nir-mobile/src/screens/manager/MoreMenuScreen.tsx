@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   userCard: {
     flexDirection: 'row-reverse',
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#38bdf8',
+    backgroundColor: '#34d399',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -274,13 +274,13 @@ const styles = StyleSheet.create({
   userRole: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 11,
-    color: '#bae6fd',
+    color: '#a7f3d0',
     marginTop: 2,
   },
   userPhone: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 11,
-    color: '#e0f2fe',
+    color: '#ecfdf5',
     marginTop: 2,
   },
   sectionTitle: {
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   quickText: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 11,
-    color: '#0284c7',
+    color: '#059669',
   },
   modalBtnRow: {
     flexDirection: 'row',
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     flex: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',

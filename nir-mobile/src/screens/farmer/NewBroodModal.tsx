@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   previewHint: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
     textAlign: 'right',
     marginTop: 4,
   },
@@ -311,8 +311,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   quickCountChipActive: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#059669',
   },
   quickCountText: {
     fontFamily: 'Vazirmatn_500Medium',
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   quickCountTextActive: {
     fontFamily: 'Vazirmatn_700Bold',
-    color: '#0284c7',
+    color: '#059669',
   },
   dateSelector: {
     flexDirection: 'row-reverse',
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   dateBadge: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#ecfdf5',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   dateBadgeText: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 11,
-    color: '#0284c7',
+    color: '#059669',
   },
   errorBox: {
     backgroundColor: '#fef2f2',
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

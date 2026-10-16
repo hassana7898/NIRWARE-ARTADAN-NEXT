@@ -112,7 +112,7 @@ export function OrderFeedModal({
             {/* Product Selection */}
             <Text style={styles.label}>نوع جیره / محصول دان:</Text>
             {loadingProducts ? (
-              <ActivityIndicator size="small" color="#0284c7" style={{ marginVertical: 12 }} />
+              <ActivityIndicator size="small" color="#059669" style={{ marginVertical: 12 }} />
             ) : products.length === 0 ? (
               <Text style={{ fontFamily: 'Vazirmatn_400Regular', fontSize: 12, color: '#ef4444', textAlign: 'right', marginVertical: 8 }}>
                 هیچ محصول دان فعالی در سیستم یافت نشد.
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   productPillActive: {
-    backgroundColor: '#0284c7',
-    borderColor: '#0284c7',
+    backgroundColor: '#059669',
+    borderColor: '#059669',
   },
   productText: {
     fontFamily: 'Vazirmatn_400Regular',
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   weightPreview: {
     fontFamily: 'Vazirmatn_500Medium',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
     textAlign: 'right',
     marginTop: 4,
   },
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   dateIconText: {
     fontFamily: 'Vazirmatn_400Regular',
     fontSize: 12,
-    color: '#0284c7',
+    color: '#059669',
   },
   notesInput: {
     height: 70,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#059669',
     paddingVertical: 11,
     borderRadius: 8,
     alignItems: 'center',
